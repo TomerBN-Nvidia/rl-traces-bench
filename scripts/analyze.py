@@ -76,7 +76,14 @@ def compute_report(records):
 
 
 def validate_token_domain(records, tol=0.15):
-    osl = [r["osl"] for r in records if r["osl"]]
+    """The published OSL distribution is per-SAMPLE (per-rollout total), so compare
+    per-ROLLOUT total OSL (summed over a session's turns) — not per-turn OSL."""
+    from collections import defaultdict
+    tot = defaultdict(int)
+    for r in records:
+        if r["osl"]:
+            tot[r["session_id"]] += r["osl"]
+    osl = list(tot.values())
     got = percentiles(osl, [50, 95, 99])
     targets = {50: 654, 95: 33212, 99: 57067}
     checks = {p: abs(got[p] - t) <= tol * t for p, t in targets.items()}

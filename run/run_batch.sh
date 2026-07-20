@@ -13,13 +13,14 @@ TRACE="${1:?usage: run_batch.sh <trace.jsonl> <B> <out_dir>}"; B="${2:?}"; OUT="
 # e.g. nvidia/NVIDIA-Nemotron-3-Super-120B-BF16-BF16KV-012726, and point HF_HOME
 # at a warm cache to load it offline. Required.
 TOKENIZER="${TOKENIZER:?set TOKENIZER to the served model HF repo id (namespace/name)}"
-# Endpoint: default /v1/completions. Chat's template can emit a turn-end stop token
-# that ignore_eos (which only suppresses the EOS token id) does NOT cover, so the
-# server stops early and OSL is not enforced. The completions endpoint has no chat
-# template, so ignore_eos forces exactly max_tokens -> faithful OSL replay. Override
-# with ENDPOINT_TYPE=chat ENDPOINT=/v1/chat/completions if you specifically need chat.
-ENDPOINT_TYPE="${ENDPOINT_TYPE:-completions}"
-ENDPOINT="${ENDPOINT:-/v1/completions}"
+# Endpoint: default /v1/chat/completions. Chat is REQUIRED for multi-turn — aiperf
+# accumulates the conversation across turns (growing prefix -> prefix caching) and
+# generates every turn. (The completions endpoint only generates the first turn of a
+# mooncake conversation, collapsing the rollout tail — validated on HSG.) Exact
+# per-turn OSL is enforced on chat by ignore_eos + the CORRECT tokenizer +
+# --use-server-token-count (no min_tokens needed) — also validated on HSG.
+ENDPOINT_TYPE="${ENDPOINT_TYPE:-chat}"
+ENDPOINT="${ENDPOINT:-/v1/chat/completions}"
 # Per NVIDIA btk-recipes bench-clients-aiperf guide:
 #  --tokenizer-trust-remote-code : required for custom tokenizers (Nemotron etc.)
 #  --use-server-token-count      : take OSL from the server's usage.completion_tokens
