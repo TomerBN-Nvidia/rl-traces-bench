@@ -47,6 +47,8 @@ rl-traces analyze --export runs/baseline/.../profile_export.jsonl \
   --out-json runs/baseline/report.json
 ```
 
+If you generated the trace with a custom `--distribution <path.json>` in step 1, pass that same `--distribution <path.json>` to `analyze` (or `run`, which forwards it) so the token-domain validation gate checks against your distribution's anchors instead of the packaged example's — otherwise a faithful replay of a custom distribution can show a spurious `validate_token.passed: false`.
+
 See the `interpret-longtail-report` skill for what the fields in `report.json` mean.
 
 ## 5. A/B two configs or vLLM builds

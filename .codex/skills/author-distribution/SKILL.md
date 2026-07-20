@@ -37,3 +37,5 @@ description: Use when authoring a custom `--distribution` JSON file to calibrate
    ```
 
 5. Check the fit: `gen-trace` writes `t.jsonl.stats.json` alongside the trace. Open it and confirm the realized percentiles track the anchors you specified — if a percentile is far off, your anchors are too sparse near that percentile; add an intermediate anchor and regenerate.
+
+6. When you later run `analyze` or `run` against a trace generated from `my_dist.json`, pass `--distribution my_dist.json` to it too, so the token-domain validation gate (`report.json`'s `validate_token`) checks realized OSL against *your* anchors instead of the packaged example's — see the `run-longtail-bench` skill.

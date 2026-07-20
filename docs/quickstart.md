@@ -82,9 +82,14 @@ entirely — see the "run vs serve" section in the top-level [README](../README.
 rl-traces doctor --env .env
 ```
 
-Prints a checklist (vLLM importable, `aiperf` on `PATH`, `TOKENIZER` set,
-`VLLM_SRC` exists) with a fix hint for anything that fails, and exits
-non-zero if anything is red.
+Prints a checklist built from what your `.env` says you're doing: `aiperf`
+on `PATH` and `TOKENIZER` set are always checked; if `URL` is set it probes
+the endpoint; if `VLLM_SERVE_ARGS` is set (i.e. you're serving) it also
+checks that `vllm` is importable and `VLLM_SRC` points at a real directory.
+Each line prints a fix hint if it fails, and `doctor` exits non-zero if
+anything is red. If you skipped `serve` and pointed `run` at an existing
+endpoint instead, `doctor` won't demand a vLLM install — it just checks the
+endpoint is reachable.
 
 ### d. Run the benchmark
 

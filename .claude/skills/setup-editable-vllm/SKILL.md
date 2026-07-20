@@ -5,7 +5,7 @@ description: Use when setting up an editable vLLM checkout to serve for the rl-t
 
 # Set up an editable vLLM checkout
 
-Goal: get `rl-traces doctor --env .env` to report all checks OK, then serve.
+Goal: get every `rl-traces doctor --env .env` check that can pass before serving to report OK (everything except `endpoint reachable`, which needs the server up), then serve.
 
 ## 1. Create a venv
 
@@ -47,19 +47,19 @@ Then loop:
 rl-traces doctor --env .env
 ```
 
-until every check prints `[OK ]`. The checks are: `vllm` importable, `aiperf` on PATH, `TOKENIZER` set, and `VLLM_SRC` pointing at a real directory. Each failing line prints its own fix hint — follow it, rerun `doctor`, repeat.
+until every check that *can* pass right now does. `doctor` builds its checklist from what your `.env` says you're doing: `aiperf` on PATH and `TOKENIZER` set are always checked; because `VLLM_SERVE_ARGS` is set (you're serving), `vllm` importable and `VLLM_SRC` pointing at a real directory are checked too; because `URL` is also set, `doctor` probes the endpoint — that check will `FAIL` until you actually run `serve` below, which is expected at this stage. Each failing line prints its own fix hint — follow it, rerun `doctor`, repeat, and treat `endpoint reachable` as informational until after step 5.
 
 Example model id you can use for a smoke test: `nvidia/Llama-3_3-Nemotron-Super-49B-v1`.
 
 ## 5. Serve
 
-Once `doctor` is all green:
+Once every pre-serve `doctor` check (`aiperf present`, `tokenizer set`, `vllm importable`, `vllm_src exists`) is green:
 
 ```
 rl-traces serve --env .env
 ```
 
-This runs `vllm serve $VLLM_SERVE_ARGS` verbatim and writes `serve_provenance.json` for later comparison.
+This runs `vllm serve $VLLM_SERVE_ARGS` verbatim and writes `serve_provenance.json` for later comparison. Rerun `rl-traces doctor --env .env` once it's up — `endpoint reachable` should now report `OK` too.
 
 ## Verify-not-install boundary
 

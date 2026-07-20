@@ -1,5 +1,7 @@
 from rl_traces_bench.run import build_aiperf_cmd, find_export
+from rl_traces_bench import run as run_mod
 import os
+import pytest
 
 def test_build_aiperf_cmd_has_required_flags():
     cmd = build_aiperf_cmd("t.jsonl", "localhost:8000", 512, "org/model", "/out", model="m")
@@ -43,3 +45,21 @@ def test_find_export_locates_nested(tmp_path):
     d = tmp_path / "a" / "b"; d.mkdir(parents=True)
     f = d / "profile_export.jsonl"; f.write_text("{}\n")
     assert find_export(str(tmp_path)) == str(f)
+
+def test_main_raises_systemexit_with_helpful_message_when_aiperf_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(run_mod.shutil, "which", lambda name: None)
+    trace = tmp_path / "t.jsonl"; trace.write_text('{}\n')
+    argv = ["--trace", str(trace), "--concurrency", "1", "--tokenizer", "org/m",
+            "--out", str(tmp_path / "out")]
+    with pytest.raises(SystemExit) as exc:
+        run_mod.main(argv)
+    msg = str(exc.value)
+    assert "aiperf" in msg
+    assert "pip install aiperf" in msg
+    assert "rl-traces-bench[run]" in msg
+
+def test_check_aiperf_available_reflects_shutil_which(monkeypatch):
+    monkeypatch.setattr(run_mod.shutil, "which", lambda name: "/usr/bin/aiperf")
+    assert run_mod._check_aiperf_available() is True
+    monkeypatch.setattr(run_mod.shutil, "which", lambda name: None)
+    assert run_mod._check_aiperf_available() is False

@@ -41,22 +41,28 @@ URL=localhost:8000
 vLLM build supports works, with zero translation layer and zero changes to
 this tool as vLLM's CLI evolves.
 
-Run `rl-traces doctor` until every line is green:
+Run `rl-traces doctor` before you serve anything:
 
 ```bash
 rl-traces doctor --env .env
 ```
 
+Since this `.env` sets both `VLLM_SERVE_ARGS` and `URL`, `doctor` checks
+your vLLM setup plus (since `URL` is set) probes the endpoint:
+
 ```
-[OK ] vllm importable
 [OK ] aiperf present
 [OK ] tokenizer set
+[FAIL] endpoint reachable  -> start your server or fix URL in .env
+[OK ] vllm importable
 [OK ] vllm_src exists
 ```
 
-A `FAIL` line prints its own fix hint (e.g. `pip install -e $VLLM_SRC`).
-Don't move on to a real run until this is clean — a broken setup here is a
-much cheaper thing to debug than a broken benchmark run.
+`endpoint reachable` failing here is expected — you haven't run `serve` yet.
+Get every *other* line green first (a `FAIL` prints its own fix hint, e.g.
+`pip install -e $VLLM_SRC`); that's the part worth debugging before a real
+run. Once you `serve` and want to confirm the endpoint actually came up,
+rerun `doctor` and `endpoint reachable` should flip to `OK`.
 
 ## The A/B loop
 

@@ -13,6 +13,7 @@ dependencies = []
 
 [project.optional-dependencies]
 serve = ["vllm"]
+run = ["aiperf"]
 dev = ["pytest"]
 
 [project.scripts]

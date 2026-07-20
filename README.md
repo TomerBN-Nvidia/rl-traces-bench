@@ -79,7 +79,11 @@ These are two different roles — most benchmark runs only need one of them:
 
 If you already have an endpoint running somewhere — your own server, someone
 else's, a hosted API — **skip `serve` entirely** and just point
-`rl-traces run --url <host:port>` at it.
+`rl-traces run --url <host:port>` at it. `doctor` follows the same split: it
+always checks for `aiperf` on `PATH` and a set `TOKENIZER`, probes the
+endpoint when `URL` is set in your `.env`, and only checks `vllm`/`VLLM_SRC`
+when you're serving (i.e. `VLLM_SERVE_ARGS` is set) — so the client-only path
+above passes `doctor` cleanly with no vLLM install required.
 
 The A/B loop for "did my vLLM change shrink the tail?" is: `gen-trace` once →
 `serve` build X → `run` → edit vLLM → `serve` build Y → `run` → `compare`. See

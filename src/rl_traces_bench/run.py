@@ -1,6 +1,6 @@
 """Replay a Mooncake trace as a static batch (concurrency == #sessions) via aiperf,
 then analyze. Endpoint-agnostic: point --url at any OpenAI-compatible server."""
-import argparse, json, os, subprocess
+import argparse, json, os, shutil, subprocess
 
 def build_aiperf_cmd(trace, url, concurrency, tokenizer, out_dir, model="model",
                      endpoint_type="completions", endpoint="/v1/completions",
@@ -24,6 +24,10 @@ def build_aiperf_cmd(trace, url, concurrency, tokenizer, out_dir, model="model",
     cmd += ["--extra-inputs", "ignore_eos:true"]
     return cmd
 
+def _check_aiperf_available():
+    return shutil.which("aiperf") is not None
+
+
 def find_export(out_dir):
     for root, _dirs, files in os.walk(out_dir):
         if "profile_export.jsonl" in files:
@@ -43,7 +47,13 @@ def main(argv=None):
     ap.add_argument("--endpoint-type", default="completions")
     ap.add_argument("--endpoint", default="/v1/completions")
     ap.add_argument("--synth-max-osl", type=int, default=None)
+    ap.add_argument("--distribution", default=None,
+                    help="distribution JSON to derive token-domain validation targets from "
+                         "(defaults to the packaged example long-tail profile's targets)")
     a = ap.parse_args(argv)
+    if not _check_aiperf_available():
+        raise SystemExit("aiperf not found on PATH — install with: pip install aiperf"
+                          "  (or: pip install 'rl-traces-bench[run]')")
     os.makedirs(a.out, exist_ok=True)
     subprocess.run(build_aiperf_cmd(a.trace, a.url, a.concurrency, a.tokenizer, a.out, a.model,
                                      endpoint_type=a.endpoint_type, endpoint=a.endpoint,
@@ -52,11 +62,12 @@ def main(argv=None):
     if not export:
         raise SystemExit(f"no profile_export.jsonl under {a.out}")
     from rl_traces_bench.analyze import (load_profile_export, compute_report,
-        validate_token_domain, validate_time_domain)
+        validate_token_domain, validate_time_domain, token_targets_from_distribution)
     from rl_traces_bench.metrics import session_completions
     recs = load_profile_export(export)
     rep = compute_report(recs)
-    rep["validate_token"] = validate_token_domain(recs)
+    targets = token_targets_from_distribution(a.distribution) if a.distribution else None
+    rep["validate_token"] = validate_token_domain(recs, targets=targets)
     rep["validate_time"] = validate_time_domain(session_completions(recs))
     try:
         from rl_traces_bench.provenance import collect_provenance

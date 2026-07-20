@@ -78,15 +78,24 @@ A trace can be generated correctly but still fail to reproduce the intended
 considered validated if **both** pass:
 
 - **Token-domain check** — realized OSL percentiles from the actual served
-  responses (p50/p95/p99) reproduce the distribution's anchors within
-  tolerance. This confirms the trace was replayed faithfully — the server
-  actually generated approximately the lengths the trace asked for.
+  responses (p50/p95/p99) reproduce the *active distribution's* anchors
+  within tolerance. This confirms the trace was replayed faithfully — the
+  server actually generated approximately the lengths the trace asked for.
+  By default the targets are the packaged example distribution's published
+  percentiles; pass `--distribution <path>` to `analyze`/`run` (the same
+  file you passed to `gen-trace`) to derive targets from your own
+  distribution's `osl_anchors` instead — otherwise a custom-distribution run
+  gets checked against the example's numbers and can fail spuriously.
 - **Time-domain check** — the *shape* of the per-rollout completion-time
   distribution (the p99/p50 and max/p50 ratios) matches a reference shape,
   not absolute times (which are model- and hardware-dependent and expected
   to vary run to run). This confirms the long tail actually shows up as a
   serving-time long tail, not just a token-count long tail — the thing the
-  benchmark exists to measure.
+  benchmark exists to measure. Unlike the token-domain check, the reference
+  ratios here come from the example workload's completion-time shape, not
+  from `--distribution` — there's no general way to predict a completion-
+  time shape from an OSL distribution alone. When you're running a custom
+  distribution, treat this check as informational rather than a hard gate.
 
 Both checks are printed in `report.json` under `validate_token` and
 `validate_time`.

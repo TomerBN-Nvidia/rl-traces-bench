@@ -75,12 +75,23 @@ def compute_report(records):
     }
 
 
-def validate_token_domain(records, tol=0.15):
+def validate_token_domain(records, targets=None, tol=0.15):
+    if targets is None:
+        targets = {50: 654, 95: 33212, 99: 57067}
     osl = [r["osl"] for r in records if r["osl"]]
     got = percentiles(osl, [50, 95, 99])
-    targets = {50: 654, 95: 33212, 99: 57067}
     checks = {p: abs(got[p] - t) <= tol * t for p, t in targets.items()}
     return {"passed": all(checks.values()), "realized": got, "checks": checks}
+
+
+def token_targets_from_distribution(dist_path):
+    """Derive token-domain validation targets (p50/p95/p99) from a distribution
+    JSON's osl_anchors, via the same inverse-CDF sampler gen-trace uses. For the
+    packaged default distribution this returns exactly {50:654,95:33212,99:57067}."""
+    from rl_traces_bench.distributions import load_distribution, QuantileSampler
+    d = load_distribution(dist_path)
+    s = QuantileSampler([tuple(a) for a in d["osl_anchors"]])
+    return {50: s.sample(0.50), 95: s.sample(0.95), 99: s.sample(0.99)}
 
 
 def validate_time_domain(completions, ref=(84.0, 909.0, 1669.0), tol=0.35):
@@ -100,10 +111,14 @@ def main(argv=None):
     ap.add_argument("--export", required=True)
     ap.add_argument("--out-html", default="report.html")
     ap.add_argument("--out-json", default=None)
+    ap.add_argument("--distribution", default=None,
+                    help="distribution JSON to derive token-domain validation targets from "
+                         "(defaults to the packaged example long-tail profile's targets)")
     a = ap.parse_args(argv)
     recs = load_profile_export(a.export)
     rep = compute_report(recs)
-    rep["validate_token"] = validate_token_domain(recs)
+    targets = token_targets_from_distribution(a.distribution) if a.distribution else None
+    rep["validate_token"] = validate_token_domain(recs, targets=targets)
     rep["validate_time"] = validate_time_domain(session_completions(recs))
     rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in rep.items())
     open(a.out_html, "w").write(f"<html><body><h1>RL long-tail report</h1>"

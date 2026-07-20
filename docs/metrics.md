@@ -28,11 +28,21 @@ batch isn't "done" until every rollout finishes.
 ## Validation gate fields
 
 - **`validate_token`** — token-domain check: do realized output-length
-  percentiles (from the actual served responses) match the distribution's
-  anchors within tolerance? `{"passed": bool, "realized": {...}, "checks": {...}}`.
-- **`validate_time`** — time-domain check: does the shape of the completion-
+  percentiles (from the actual served responses) match the *active
+  distribution's* anchors within tolerance? `{"passed": bool, "realized": {...},
+  "checks": {...}}`. The targets are the packaged example distribution's
+  published percentiles (p50=654, p95=33212, p99=57067) by default; pass
+  `--distribution <path>` to `analyze`/`run` to derive targets from your own
+  distribution's `osl_anchors` instead, so a custom-distribution run doesn't
+  get a spurious failure against the example's numbers.
+- **`validate_time`** — time-domain check: does the *shape* of the completion-
   time distribution (p99/p50 and max/p50 ratios) match a reference shape?
-  `{"passed": bool, "ratios": {...}, "ref_ratios": {...}}`.
+  `{"passed": bool, "ratios": {...}, "ref_ratios": {...}}`. The reference
+  ratios are fixed — calibrated to the packaged example workload's
+  completion-time shape, not derived from `--distribution`. When you use a
+  custom distribution this check is informational: a mismatch doesn't
+  necessarily mean anything is wrong, just that your workload's tail shape
+  differs from the example's.
 
 See [`docs/methodology.md`](methodology.md) for what these checks are for.
 
