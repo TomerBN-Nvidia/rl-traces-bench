@@ -20,7 +20,13 @@ TOKENIZER="${TOKENIZER:?set TOKENIZER to the served model HF repo id (namespace/
 # with ENDPOINT_TYPE=chat ENDPOINT=/v1/chat/completions if you specifically need chat.
 ENDPOINT_TYPE="${ENDPOINT_TYPE:-completions}"
 ENDPOINT="${ENDPOINT:-/v1/completions}"
+# Per NVIDIA btk-recipes bench-clients-aiperf guide:
+#  --tokenizer-trust-remote-code : required for custom tokenizers (Nemotron etc.)
+#  --use-server-token-count      : take OSL from the server's usage.completion_tokens
+#                                  instead of re-detokenizing client-side (avoids the
+#                                  spurious OSL-mismatch from a client tokenizer roundtrip).
 aiperf profile --model "${AIPERF_MODEL:-super}" --tokenizer "$TOKENIZER" \
+  --tokenizer-trust-remote-code --use-server-token-count \
   --endpoint-type "$ENDPOINT_TYPE" --endpoint "$ENDPOINT" --url localhost:8000 --streaming \
   --custom-dataset-type mooncake_trace --input-file "$TRACE" \
   --concurrency "$B" --export-level records --output-artifact-dir "$OUT" \
