@@ -30,6 +30,7 @@ aiperf profile --model "${AIPERF_MODEL:-super}" --tokenizer "$TOKENIZER" \
   --endpoint-type "$ENDPOINT_TYPE" --endpoint "$ENDPOINT" --url localhost:8000 --streaming \
   --custom-dataset-type mooncake_trace --input-file "$TRACE" \
   --concurrency "$B" --export-level records --output-artifact-dir "$OUT" \
+  ${SYNTH_MAX_OSL:+--synthesis-max-osl $SYNTH_MAX_OSL} \
   --extra-inputs ignore_eos:true
 # aiperf may nest the export in a run subdir; locate it rather than assume the path.
 EXPORT="$(find "$OUT" -name 'profile_export.jsonl' | head -1)"
