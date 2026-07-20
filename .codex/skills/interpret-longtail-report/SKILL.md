@@ -1,0 +1,23 @@
+---
+name: interpret-longtail-report
+description: Use when reading or interpreting a rl-traces `report.json` — explains makespan, completion percentiles, tail bubble, goodput proxy, and the validation blocks, and how to judge whether a config change helped.
+---
+
+# Interpret a long-tail report.json
+
+Fields to read, in order:
+
+- **`makespan_s`** — wall-clock time from batch start until the last rollout finishes. The top-line number: smaller is better.
+- **`completion_p50_s` / `completion_p90_s` / `completion_p99_s`** — per-rollout completion-time percentiles. These show the shape of the distribution, not just the tail.
+- **`tail_bubble_s`** — `makespan_s - completion_p90_s`. This is the idle time the batch spends waiting on the last ~10% of rollouts after most of the work is already done. It is the single best number for "how bad is my long tail." Smaller is better; near zero means the batch finishes evenly.
+- **`goodput_proxy`** — mean completion time divided by makespan (`mean / makespan_s`). A value close to **1.0 is good**: it means most rollouts finish close to when the batch as a whole finishes, i.e. little wasted tail time. Values well below 1.0 mean a lot of the batch is idle waiting for stragglers.
+- **`validate_token.passed`** — whether the realized output-token distribution matched the requested `--distribution` within tolerance. If this is `false`, don't trust the timing numbers yet — the trace itself didn't replay faithfully (check `validate_token.checks` / `.realized` for which anchor drifted).
+- **`validate_time.ratios`** — shape ratios (`p99/p50`, `max/p50`) of completion times, compared against `validate_time.ref_ratios`. `validate_time.passed` tells you whether the observed tail shape is in the same ballpark as the reference long-tail shape — useful for sanity-checking that the benchmark is actually exercising a long tail and not a flat, uniform load.
+
+## Judging whether a change helped
+
+When comparing two reports (e.g. via `rl-traces compare baseline=... mine=...`), the read is:
+
+> **Lower `tail_bubble_s` + higher `goodput_proxy` = the config helped.**
+
+Also check that `makespan_s` moved in the same direction and that both reports have `validate_token.passed: true` — otherwise you may be comparing runs that replayed different effective workloads, which invalidates the comparison.
