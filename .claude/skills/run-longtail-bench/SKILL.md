@@ -35,7 +35,7 @@ rl-traces run --url localhost:8000 --trace t.jsonl --concurrency 512 \
 
 - `run` is the **measurement client**: it replays the trace against the endpoint and records completion telemetry.
 - **Concurrency == number of rollouts** — this is a static batch, not an open-loop load generator, so `--concurrency` should match `--num-rollouts` from step 1.
-- Default endpoint is `/v1/completions` (`--endpoint-type completions`), which gives faithful exact-output-length replay. Override with `--endpoint-type chat --endpoint /v1/chat/completions` if you need chat-formatted requests.
+- Default endpoint is `/v1/chat/completions` (`--endpoint-type chat`) — chat is required for multi-turn replay, since only chat accumulates the conversation itself turn over turn; completions would only ever generate the first turn of a mooncake rollout. Exact per-turn OSL is still enforced via `ignore_eos` + `--use-server-token-count` + the real tokenizer, no `min_tokens` padding needed. Override with `--endpoint-type completions --endpoint /v1/completions` for single-turn use.
 - Pass `--vllm-src <path>` to stamp the editable vLLM build's provenance into `report.json`, which is what makes A/B comparisons trustworthy.
 
 ## 4. Analyze

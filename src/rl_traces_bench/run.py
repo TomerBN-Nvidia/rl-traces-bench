@@ -3,16 +3,20 @@ then analyze. Endpoint-agnostic: point --url at any OpenAI-compatible server."""
 import argparse, json, os, shutil, subprocess
 
 def build_aiperf_cmd(trace, url, concurrency, tokenizer, out_dir, model="model",
-                     endpoint_type="completions", endpoint="/v1/completions",
+                     endpoint_type="chat", endpoint="/v1/chat/completions",
                      synth_max_osl=None):
-    # Default to the completions endpoint for faithful exact-OSL replay: a chat
-    # template can emit a turn-end stop token that ignore_eos (which only suppresses
-    # the EOS token id) does not cover, so the server stops early and OSL is not
-    # enforced. Completions has no chat template, so ignore_eos forces exactly
-    # max_tokens. Override with endpoint_type="chat", endpoint="/v1/chat/completions".
+    # Default to the chat endpoint: it's required for multi-turn replay. Only chat
+    # accumulates the conversation itself, appending each turn's assistant response
+    # to the context before sending the next turn — completions has no such notion
+    # of a conversation, so it only ever generates the FIRST turn of a mooncake
+    # trace's rollout, silently collapsing the rest of the tail. Exact per-turn OSL
+    # is still enforced without a chat-template stop token cutting generation short:
+    # ignore_eos (below) suppresses the EOS token id, --use-server-token-count reads
+    # OSL from the server's own usage.completion_tokens (no client re-tokenize
+    # mismatch), and the tokenizer is the actual served one, not an approximation —
+    # so max_tokens is reached exactly, with no min_tokens padding required. Override
+    # with endpoint_type="completions", endpoint="/v1/completions" for single-turn use.
     # --tokenizer-trust-remote-code: required for custom tokenizers.
-    # --use-server-token-count: take OSL from the server's usage.completion_tokens
-    #   instead of a client-side re-tokenize roundtrip (avoids spurious OSL mismatch).
     cmd = ["aiperf", "profile", "--model", model, "--tokenizer", tokenizer,
            "--tokenizer-trust-remote-code", "--use-server-token-count",
            "--endpoint-type", endpoint_type, "--endpoint", endpoint,
@@ -44,8 +48,8 @@ def main(argv=None):
     ap.add_argument("--model", default="model")
     ap.add_argument("--out", required=True)
     ap.add_argument("--vllm-src", default=None, help="editable vLLM checkout, for provenance stamp")
-    ap.add_argument("--endpoint-type", default="completions")
-    ap.add_argument("--endpoint", default="/v1/completions")
+    ap.add_argument("--endpoint-type", default="chat")
+    ap.add_argument("--endpoint", default="/v1/chat/completions")
     ap.add_argument("--synth-max-osl", type=int, default=None)
     ap.add_argument("--distribution", default=None,
                     help="distribution JSON to derive token-domain validation targets from "

@@ -22,10 +22,10 @@ through `rl-traces run`, and prints `SMOKE OK` once `report.json` (written to
 var) exists. Use this to sanity-check an install or a change to the pipeline
 before touching a real GPU.
 
-Note: the mock server only implements the chat-completions shape, so the
-smoke script explicitly passes `--endpoint-type chat --endpoint
-/v1/chat/completions` (the CLI otherwise defaults to `/v1/completions` for
-exact-OSL replay — see below).
+Note: the mock server only implements the chat-completions shape, which
+matches the CLI's default (`--endpoint-type chat --endpoint
+/v1/chat/completions`) — chat is required for multi-turn replay, so no
+override is needed.
 
 ## 2. The real path
 

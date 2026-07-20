@@ -62,8 +62,15 @@ rollout.
 ## Input-length growth and prefix caching
 
 Per-turn input length grows monotonically within a rollout: it's the shared
-system-prompt tokens, plus every prior turn's user/tool input and the
-model's own prior outputs, plus the current turn's new input. Each turn's
+system-prompt tokens plus every prior and current turn's user/tool input —
+**not** the model's own prior outputs. On the chat endpoint (the default —
+see [`README.md`](../README.md)), `aiperf` accumulates the conversation
+itself, appending each turn's assistant response to the context before
+sending the next turn; if the trace's `input_length` also folded in that
+output growth, the context would be double-counted and overflow
+`max-model-len` on long rollouts. The server-side cumulative input length
+`aiperf` actually sends is this trace value plus the running sum of prior
+output lengths, which is exactly the intended growing context. Each turn's
 trace record carries block-aligned prefix-cache `hash_ids` — a superset of
 the previous turn's — so replaying the trace against a prefix-caching-aware
 server produces genuine cache hits on the growing shared prefix, and no
@@ -77,15 +84,20 @@ A trace can be generated correctly but still fail to reproduce the intended
 (via `analyze`) checks two independent things, and Phase 1 is only
 considered validated if **both** pass:
 
-- **Token-domain check** — realized OSL percentiles from the actual served
-  responses (p50/p95/p99) reproduce the *active distribution's* anchors
-  within tolerance. This confirms the trace was replayed faithfully — the
-  server actually generated approximately the lengths the trace asked for.
-  By default the targets are the packaged example distribution's published
-  percentiles; pass `--distribution <path>` to `analyze`/`run` (the same
-  file you passed to `gen-trace`) to derive targets from your own
-  distribution's `osl_anchors` instead — otherwise a custom-distribution run
-  gets checked against the example's numbers and can fail spuriously.
+- **Token-domain check** — realized **per-rollout total** OSL percentiles
+  (summed over each session's turns) from the actual served responses
+  (p50/p95/p99) reproduce the *active distribution's* anchors within
+  tolerance. Aggregation is per-rollout, not per-turn, because the published
+  anchors describe the per-sample (whole-rollout) OSL distribution — summing
+  each session's turns before taking percentiles is what makes the
+  comparison apples-to-apples regardless of `--osl-level`. This confirms the
+  trace was replayed faithfully — the server actually generated
+  approximately the lengths the trace asked for. By default the targets are
+  the packaged example distribution's published percentiles; pass
+  `--distribution <path>` to `analyze`/`run` (the same file you passed to
+  `gen-trace`) to derive targets from your own distribution's `osl_anchors`
+  instead — otherwise a custom-distribution run gets checked against the
+  example's numbers and can fail spuriously.
 - **Time-domain check** — the *shape* of the per-rollout completion-time
   distribution (the p99/p50 and max/p50 ratios) matches a reference shape,
   not absolute times (which are model- and hardware-dependent and expected

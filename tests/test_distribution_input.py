@@ -13,7 +13,7 @@ def test_build_trace_with_example_distribution_is_byte_identical():
                           d["turn_counts"], anchors=[tuple(a) for a in d["osl_anchors"]])
     blob = "".join(json.dumps(r) + "\n" for r in recs).encode()
     assert hashlib.sha256(blob).hexdigest() == \
-        "e5cc63399dbb2f6a591c357cfcf7b010f4188f85d82c285576148be85d4806cd"
+        "783b5825a3305960036b0dbaf8f480056f233e86992fedc489be25c51207f8e9"
 
 def test_packaged_and_example_distribution_files_are_byte_identical():
     packaged = default_distribution_path()

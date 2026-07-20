@@ -16,20 +16,23 @@ def test_build_aiperf_cmd_has_required_flags():
     assert "--tokenizer-trust-remote-code" in cmd
     assert "--use-server-token-count" in cmd
 
-def test_build_aiperf_cmd_defaults_to_completions_endpoint():
+def test_build_aiperf_cmd_defaults_to_chat_endpoint():
+    # chat is required for multi-turn replay: only chat accumulates the
+    # conversation itself turn over turn; completions would only ever
+    # generate the first turn of a mooncake rollout.
     cmd = build_aiperf_cmd("t.jsonl", "localhost:8000", 512, "org/model", "/out", model="m")
     assert "--endpoint-type" in cmd
-    assert cmd[cmd.index("--endpoint-type") + 1] == "completions"
+    assert cmd[cmd.index("--endpoint-type") + 1] == "chat"
     assert "--endpoint" in cmd
+    assert cmd[cmd.index("--endpoint") + 1] == "/v1/chat/completions"
+
+def test_build_aiperf_cmd_endpoint_override_to_completions():
+    cmd = build_aiperf_cmd("t.jsonl", "localhost:8000", 512, "org/model", "/out", model="m",
+                            endpoint_type="completions", endpoint="/v1/completions")
+    assert cmd[cmd.index("--endpoint-type") + 1] == "completions"
     assert cmd[cmd.index("--endpoint") + 1] == "/v1/completions"
     assert "chat" not in cmd
     assert "/v1/chat/completions" not in cmd
-
-def test_build_aiperf_cmd_endpoint_override_to_chat():
-    cmd = build_aiperf_cmd("t.jsonl", "localhost:8000", 512, "org/model", "/out", model="m",
-                            endpoint_type="chat", endpoint="/v1/chat/completions")
-    assert cmd[cmd.index("--endpoint-type") + 1] == "chat"
-    assert cmd[cmd.index("--endpoint") + 1] == "/v1/chat/completions"
 
 def test_build_aiperf_cmd_synth_max_osl_included_when_set():
     cmd = build_aiperf_cmd("t.jsonl", "localhost:8000", 512, "org/model", "/out", model="m",
