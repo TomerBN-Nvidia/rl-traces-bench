@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rl-traces-bench"
+version = "0.1.0"
+description = "Trace-driven static-batch serving benchmark for long-tail LLM rollouts"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+dependencies = []
+
+[project.optional-dependencies]
+serve = ["vllm"]
+dev = ["pytest"]
+
+[project.scripts]
+rl-traces = "rl_traces_bench.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+rl_traces_bench = ["examples/distributions/*.json"]

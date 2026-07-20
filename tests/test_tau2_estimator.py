@@ -1,4 +1,4 @@
-from scripts.tau2_estimator import fit_time_model, invert_duration
+from rl_traces_bench.tau2_estimator import fit_time_model, invert_duration
 
 def test_fit_and_invert_recovers_osl():
     # synthetic ground truth: dur = 0.2 + 0.0001*isl + 0.01*osl

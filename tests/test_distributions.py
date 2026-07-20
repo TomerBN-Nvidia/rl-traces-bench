@@ -1,5 +1,5 @@
 import random
-from scripts.distributions import osl_sampler, OSL_ANCHORS
+from rl_traces_bench.distributions import osl_sampler, OSL_ANCHORS
 
 def _pct(v, p):
     v = sorted(v); return v[min(len(v)-1, round((p/100)*(len(v)-1)))]

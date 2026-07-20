@@ -1,4 +1,4 @@
-from scripts.compare import compare_reports
+from rl_traces_bench.compare import compare_reports
 
 def test_ranks_by_tail_bubble():
     reports = {

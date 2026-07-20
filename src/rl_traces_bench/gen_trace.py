@@ -3,9 +3,9 @@ import argparse
 import json
 import random
 
-from scripts.distributions import osl_sampler
-from scripts.turn_structure import load_turn_counts, sample_turn_count, split_osl
-from scripts.prompt_model import per_turn_isl, hash_ids_for
+from rl_traces_bench.distributions import osl_sampler
+from rl_traces_bench.turn_structure import load_turn_counts, sample_turn_count, split_osl
+from rl_traces_bench.prompt_model import per_turn_isl, hash_ids_for
 
 
 def _pct(v, p):

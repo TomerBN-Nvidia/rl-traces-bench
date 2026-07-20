@@ -1,4 +1,4 @@
-from scripts.prompt_model import per_turn_isl, hash_ids_for
+from rl_traces_bench.prompt_model import per_turn_isl, hash_ids_for
 
 def test_isl_monotonic_growth():
     osls = [654, 654, 5000]

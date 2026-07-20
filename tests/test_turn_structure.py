@@ -1,5 +1,5 @@
 import random
-from scripts.turn_structure import load_turn_counts, sample_turn_count, split_osl
+from rl_traces_bench.turn_structure import load_turn_counts, sample_turn_count, split_osl
 
 def test_load_counts_nonempty():
     counts = load_turn_counts("data/turn_counts.json")

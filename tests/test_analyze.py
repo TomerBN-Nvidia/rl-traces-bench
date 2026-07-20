@@ -1,4 +1,4 @@
-from scripts.analyze import (load_profile_export, compute_report,
+from rl_traces_bench.analyze import (load_profile_export, compute_report,
                              validate_token_domain, validate_time_domain)
 
 FIX = "tests/fixtures/profile_export_sample.jsonl"
@@ -25,7 +25,7 @@ def test_validate_time_domain_fails_for_flat_distribution():
 
 def test_main_writes_json_report(tmp_path):
     import sys, json as _json
-    from scripts.analyze import main
+    from rl_traces_bench.analyze import main
     out_json = tmp_path / "report.json"
     argv = ["analyze", "--export", "tests/fixtures/profile_export_sample.jsonl",
             "--out-html", str(tmp_path / "r.html"), "--out-json", str(out_json)]

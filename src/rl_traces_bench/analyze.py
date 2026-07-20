@@ -2,7 +2,7 @@
 import argparse
 import json
 
-from scripts.metrics import (percentiles, session_completions, makespan,
+from rl_traces_bench.metrics import (percentiles, session_completions, makespan,
                              tail_bubble, goodput_proxy)
 
 def _metric(metrics, *names):

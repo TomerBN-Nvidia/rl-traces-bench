@@ -1,5 +1,5 @@
-from scripts.gen_trace import build_trace
-from scripts.turn_structure import load_turn_counts
+from rl_traces_bench.gen_trace import build_trace
+from rl_traces_bench.turn_structure import load_turn_counts
 
 def test_trace_schema_and_sessions():
     counts = load_turn_counts("data/turn_counts.json")
@@ -29,7 +29,7 @@ def test_per_turn_osl_matches_anchors():
 
 def test_per_rollout_stats_are_per_rollout_level():
     from collections import defaultdict
-    from scripts.turn_structure import load_turn_counts
+    from rl_traces_bench.turn_structure import load_turn_counts
     counts = load_turn_counts("data/turn_counts.json")
     recs, stats = build_trace(num_rollouts=500, seed=2, block_size=512,
                               osl_level="per_rollout", system_tokens=300,

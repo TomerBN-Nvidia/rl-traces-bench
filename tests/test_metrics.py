@@ -1,4 +1,4 @@
-from scripts.metrics import (percentiles, sessionize, session_completions,
+from rl_traces_bench.metrics import (percentiles, sessionize, session_completions,
                              makespan, tail_bubble, goodput_proxy)
 
 REC = [  # two sessions: s0 finishes at 10s (2 turns), s1 is the straggler at 100s
