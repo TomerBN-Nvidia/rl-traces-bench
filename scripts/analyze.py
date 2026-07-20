@@ -63,6 +63,44 @@ def load_profile_export(path):
     return out
 
 
+def load_aiperf_summary(export_path):
+    """Fold aiperf's native summary (profile_export_aiperf.json, in the same
+    artifact dir) into our report — its authoritative throughput/latency/TTFT/ITL
+    metrics, plus error_request_count (a coherence gate: a run with errors did NOT
+    replay the full batch, so its rollout metrics are untrustworthy)."""
+    import glob
+    import os
+    d = os.path.dirname(os.path.abspath(export_path))
+    fs = glob.glob(os.path.join(d, "**", "profile_export_aiperf.json"), recursive=True) \
+        or glob.glob(os.path.join(d, "profile_export_aiperf.json"))
+    if not fs:
+        return None
+    s = json.load(open(fs[0]))
+
+    def val(name):                       # scalar metric -> its avg
+        m = s.get(name)
+        return m.get("avg") if isinstance(m, dict) else m
+
+    def stats(name, keys=("avg", "p50", "p90", "p99")):
+        m = s.get(name) or {}
+        return {k: m.get(k) for k in keys if isinstance(m, dict) and m.get(k) is not None}
+
+    errs = val("error_request_count") or 0
+    return {
+        "aiperf_version": s.get("aiperf_version"),
+        "error_request_count": errs,
+        "request_count": val("request_count"),
+        "faithful": errs == 0,           # coherence gate
+        "output_token_throughput_tok_s": val("output_token_throughput"),
+        "request_throughput_req_s": val("request_throughput"),
+        "request_latency_ms": stats("request_latency"),
+        "time_to_first_token_ms": stats("time_to_first_token"),
+        "inter_token_latency_ms": stats("inter_token_latency"),
+        "input_sequence_length": stats("input_sequence_length", ("avg", "max")),
+        "output_sequence_length": stats("output_sequence_length", ("avg", "max")),
+    }
+
+
 def compute_report(records):
     comps = session_completions(records)
     cp = percentiles(comps, [50, 90, 99])
@@ -115,6 +153,7 @@ def main():
     rep = compute_report(recs)
     rep["validate_token"] = validate_token_domain(recs)
     rep["validate_time"] = validate_time_domain(session_completions(recs))
+    rep["aiperf"] = load_aiperf_summary(a.export)   # native perf metrics + error gate
     rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in rep.items())
     open(a.out_html, "w").write(f"<html><body><h1>RL long-tail report</h1>"
                                 f"<table border=1>{rows}</table></body></html>")
