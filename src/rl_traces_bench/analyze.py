@@ -86,11 +86,15 @@ def load_aiperf_summary(export_path):
         return {k: m.get(k) for k in keys if isinstance(m, dict) and m.get(k) is not None}
 
     errs = val("error_request_count") or 0
+    # Prefix-cache metrics appear only when vLLM runs with --enable-prompt-tokens-details
+    # (any summary metric whose name mentions "cache"). Passthrough so we don't guess names.
+    cache = {k: val(k) for k in s if "cache" in k.lower()} or None
     return {
         "aiperf_version": s.get("aiperf_version"),
         "error_request_count": errs,
         "request_count": val("request_count"),
         "faithful": errs == 0,           # coherence gate
+        "prefix_cache": cache,           # None unless --enable-prompt-tokens-details is set
         "output_token_throughput_tok_s": val("output_token_throughput"),
         "request_throughput_req_s": val("request_throughput"),
         "request_latency_ms": stats("request_latency"),
