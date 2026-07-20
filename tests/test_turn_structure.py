@@ -2,12 +2,12 @@ import random
 from rl_traces_bench.turn_structure import load_turn_counts, sample_turn_count, split_osl
 
 def test_load_counts_nonempty():
-    counts = load_turn_counts("data/turn_counts.json")
+    counts = load_turn_counts("tests/fixtures/turn_counts_sample.json")
     assert len(counts) == 1024
     assert min(counts) >= 1 and max(counts) <= 30
 
 def test_sample_turn_count_in_range():
-    counts = load_turn_counts("data/turn_counts.json")
+    counts = load_turn_counts("tests/fixtures/turn_counts_sample.json")
     rng = random.Random(0)
     for _ in range(1000):
         t = sample_turn_count(rng, counts)

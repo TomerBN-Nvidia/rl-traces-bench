@@ -4,6 +4,8 @@ We do NOT assume a parametric family (the real distribution is bimodal). Instead
 we build the quantile function from the measured anchor points and interpolate
 between them in log-token space, so realized percentiles match by construction.
 """
+import importlib.resources
+import json
 import math
 import random
 
@@ -42,5 +44,15 @@ class QuantileSampler:
         return [self.sample(rng.random()) for _ in range(n)]
 
 
-def osl_sampler():
-    return QuantileSampler(OSL_ANCHORS)
+def osl_sampler(anchors=OSL_ANCHORS):
+    return QuantileSampler(anchors)
+
+
+def default_distribution_path():
+    """Filesystem path to the packaged default distribution JSON."""
+    return str(importlib.resources.files("rl_traces_bench").joinpath("data/example_longtail.json"))
+
+
+def load_distribution(path):
+    d = json.load(open(path))
+    return {"osl_anchors": d["osl_anchors"], "turn_counts": d.get("turn_counts", [])}

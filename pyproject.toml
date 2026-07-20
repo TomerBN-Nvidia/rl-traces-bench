@@ -22,4 +22,4 @@ rl-traces = "rl_traces_bench.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-rl_traces_bench = ["examples/distributions/*.json"]
+rl_traces_bench = ["data/*.json"]

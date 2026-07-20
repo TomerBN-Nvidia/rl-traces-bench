@@ -3,7 +3,7 @@ import argparse
 import json
 import random
 
-from rl_traces_bench.distributions import osl_sampler
+from rl_traces_bench.distributions import osl_sampler, OSL_ANCHORS, load_distribution, default_distribution_path
 from rl_traces_bench.turn_structure import load_turn_counts, sample_turn_count, split_osl
 from rl_traces_bench.prompt_model import per_turn_isl, hash_ids_for
 
@@ -13,9 +13,9 @@ def _pct(v, p):
 
 
 def build_trace(num_rollouts, seed, block_size, osl_level, system_tokens,
-                user_turn_tokens, shared_blocks, turn_counts):
+                user_turn_tokens, shared_blocks, turn_counts, anchors=OSL_ANCHORS):
     rng = random.Random(seed)
-    sampler = osl_sampler()
+    sampler = osl_sampler(anchors)
     records, all_osl = [], []
     # reserve a per-rollout block namespace wide enough for the largest prompt
     base_stride = 1_000_000
@@ -57,12 +57,20 @@ def main():
     ap.add_argument("--system-tokens", type=int, default=300)
     ap.add_argument("--user-turn-tokens", type=int, default=200)
     ap.add_argument("--shared-blocks", type=int, default=1)
-    ap.add_argument("--turn-counts", default="data/turn_counts.json")
+    ap.add_argument("--distribution", default=None,
+                    help="path to a distribution JSON with osl_anchors + turn_counts "
+                         "(default: packaged example_longtail.json)")
+    ap.add_argument("--turn-counts", default=None,
+                    help="override turn_counts, ignoring --distribution's turn_counts")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
-    counts = load_turn_counts(a.turn_counts)
+    dist_path = a.distribution if a.distribution is not None else default_distribution_path()
+    dist = load_distribution(dist_path)
+    anchors = [tuple(pair) for pair in dist["osl_anchors"]]
+    counts = load_turn_counts(a.turn_counts) if a.turn_counts is not None else dist["turn_counts"]
     recs, stats = build_trace(a.num_rollouts, a.seed, a.block_size, a.osl_level,
-                              a.system_tokens, a.user_turn_tokens, a.shared_blocks, counts)
+                              a.system_tokens, a.user_turn_tokens, a.shared_blocks, counts,
+                              anchors=anchors)
     with open(a.out, "w") as f:
         for r in recs:
             f.write(json.dumps(r) + "\n")

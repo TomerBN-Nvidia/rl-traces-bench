@@ -1,8 +1,12 @@
 from rl_traces_bench.gen_trace import build_trace
-from rl_traces_bench.turn_structure import load_turn_counts
+from rl_traces_bench.distributions import load_distribution, default_distribution_path
+
+
+def _turn_counts():
+    return load_distribution(default_distribution_path())["turn_counts"]
 
 def test_trace_schema_and_sessions():
-    counts = load_turn_counts("data/turn_counts.json")
+    counts = _turn_counts()
     recs, stats = build_trace(num_rollouts=50, seed=0, block_size=512,
                               osl_level="per_turn", system_tokens=300,
                               user_turn_tokens=200, shared_blocks=1, turn_counts=counts)
@@ -20,7 +24,7 @@ def test_trace_schema_and_sessions():
         assert set(a["hash_ids"]).issubset(set(b["hash_ids"]))
 
 def test_per_turn_osl_matches_anchors():
-    counts = load_turn_counts("data/turn_counts.json")
+    counts = _turn_counts()
     recs, stats = build_trace(num_rollouts=3000, seed=1, block_size=512,
                               osl_level="per_turn", system_tokens=300,
                               user_turn_tokens=200, shared_blocks=1, turn_counts=counts)
@@ -29,8 +33,7 @@ def test_per_turn_osl_matches_anchors():
 
 def test_per_rollout_stats_are_per_rollout_level():
     from collections import defaultdict
-    from rl_traces_bench.turn_structure import load_turn_counts
-    counts = load_turn_counts("data/turn_counts.json")
+    counts = _turn_counts()
     recs, stats = build_trace(num_rollouts=500, seed=2, block_size=512,
                               osl_level="per_rollout", system_tokens=300,
                               user_turn_tokens=200, shared_blocks=1, turn_counts=counts)
