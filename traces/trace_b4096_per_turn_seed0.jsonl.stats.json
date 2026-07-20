@@ -1,0 +1,10 @@
+{
+  "num_rollouts": 4096,
+  "num_records": 122771,
+  "osl_level": "per_turn",
+  "osl_p50": 643,
+  "osl_p90": 22203,
+  "osl_p95": 33108,
+  "osl_p99": 57265,
+  "osl_max": 65482
+}

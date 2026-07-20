@@ -1,0 +1,1 @@
+# Install with: pip install -e '.[dev]'  (add [serve] for the vLLM serve helper)
