@@ -62,8 +62,8 @@ TOKENIZER=nvidia/Llama-3_3-Nemotron-Super-49B-v1
 URL=localhost:8000
 ```
 
-`<HF_MODEL_ID>` can be any HF repo id your vLLM build can serve — the example
-above just shows a real, public, vLLM-ready one.
+Any HF repo id your vLLM build can serve works here; the example above uses
+a real, public, vLLM-ready one.
 
 ```bash
 rl-traces serve --env .env &

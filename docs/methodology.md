@@ -30,8 +30,9 @@ percentile, output length is this many tokens." To sample: draw
 counts span multiple orders of magnitude and linear interpolation between a
 handful of anchors would badly misrepresent the middle of each bracket).
 
-The tool ships one example long-tail profile
-(`examples/distributions/example_longtail.json`) as the default distribution.
+The tool ships one example long-tail profile as the packaged default
+distribution, at `src/rl_traces_bench/data/example_longtail.json` (mirrored
+for easy reference/editing at `examples/distributions/example_longtail.json`).
 Swap in your own with `--distribution <path>` — same schema, any anchors you
 want, from any workload you're trying to reproduce.
 

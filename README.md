@@ -105,10 +105,12 @@ changes needed to try a different long-tail shape:
 - `turn_counts` — an array of per-rollout turn counts, sampled to give each
   synthetic rollout a realistic multi-turn shape.
 
-`rl-traces gen-trace` defaults to a packaged example long-tail profile
-(`examples/distributions/example_longtail.json`) so you can run it with zero
-setup; pass `--distribution <path>` to swap in your own. See
-[`docs/methodology.md`](docs/methodology.md) for the calibration rationale.
+`rl-traces gen-trace` defaults to the packaged example long-tail profile at
+`src/rl_traces_bench/data/example_longtail.json` (mirrored for easy
+reference/editing at `examples/distributions/example_longtail.json`) so you
+can run it with zero setup; pass `--distribution <path>` to swap in your own.
+See [`docs/methodology.md`](docs/methodology.md) for the calibration
+rationale.
 
 ## Docs
 
