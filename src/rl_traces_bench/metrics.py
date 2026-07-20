@@ -31,7 +31,8 @@ def tail_bubble(completions):
 
 
 def goodput_proxy(completions):
-    """Fraction of batch wall time that is useful (mean completion / makespan)."""
+    """Fraction of batch wall time that is useful: mean completion / makespan
+    (makespan == max session completion for batch-relative records)."""
     return (sum(completions) / len(completions)) / max(completions)
 
 

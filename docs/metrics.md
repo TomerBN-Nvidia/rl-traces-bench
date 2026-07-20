@@ -89,6 +89,9 @@ hand-built export).
 - **`input_sequence_length`** / **`output_sequence_length`** — `{"avg",
   "max"}` dicts from `aiperf`'s own token accounting, a cross-check against
   `validate_token.realized`.
+- **`prefix_cache`** — passthrough dict of `aiperf`'s `*cache*`-named metrics
+  (e.g. cache hit rate). Only present when the server was run with
+  `--enable-prompt-tokens-details`; `null` otherwise.
 - **`aiperf_version`** — the `aiperf` version that produced the export, for
   provenance when comparing reports across `aiperf` upgrades.
 
@@ -107,11 +110,12 @@ about when digging into a run:
 
 ## Prefix-cache hit rate
 
-Not currently part of the aiperf export or `report.json` — capture it
-separately from your server's own metrics endpoint (e.g. vLLM's `/metrics`)
-during the run if you want to correlate cache behavior with the tail. A
-higher prefix-cache hit rate generally means less redundant prefill work as
-each rollout's turns grow the shared prefix.
+Available in `report.json["aiperf"]["prefix_cache"]` when the server runs
+with `--enable-prompt-tokens-details` (see the `aiperf` block above);
+otherwise `null`. If you need it without that flag, capture it separately
+from your server's own metrics endpoint (e.g. vLLM's `/metrics`) during the
+run. A higher prefix-cache hit rate generally means less redundant prefill
+work as each rollout's turns grow the shared prefix.
 
 ## See also
 

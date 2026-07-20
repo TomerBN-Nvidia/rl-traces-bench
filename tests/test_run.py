@@ -1,5 +1,6 @@
 from rl_traces_bench.run import build_aiperf_cmd, find_export
 from rl_traces_bench import run as run_mod
+import json
 import os
 import pytest
 
@@ -66,3 +67,49 @@ def test_check_aiperf_available_reflects_shutil_which(monkeypatch):
     assert run_mod._check_aiperf_available() is True
     monkeypatch.setattr(run_mod.shutil, "which", lambda name: None)
     assert run_mod._check_aiperf_available() is False
+
+
+def test_assemble_report_includes_aiperf_summary_and_validation(tmp_path):
+    # A small profile_export.jsonl (two sessions, one turn each) plus a sibling
+    # profile_export_aiperf.json — same pairing `analyze.main` relies on via
+    # load_aiperf_summary. assemble_report must fold BOTH the aiperf block
+    # (throughput/faithful/prefix_cache) AND the token/time validation blocks
+    # into the same report `run.main` writes, matching analyze's report shape.
+    export_dir = tmp_path / "artifacts"
+    export_dir.mkdir()
+    export = export_dir / "profile_export.jsonl"
+    records = [
+        {"metadata": {"conversation_id": "0", "turn_index": 0,
+                       "request_start_ns": 1_000_000_000_000_000_000,
+                       "request_end_ns": 1_000_000_004_000_000_000,
+                       "benchmark_phase": "profiling"},
+         "metrics": {"input_sequence_length": {"value": 500, "unit": "tokens"},
+                     "output_sequence_length": {"value": 654, "unit": "tokens"},
+                     "time_to_first_token": {"value": 200.0, "unit": "ms"}}},
+        {"metadata": {"conversation_id": "1", "turn_index": 0,
+                       "request_start_ns": 1_000_000_000_000_000_000,
+                       "request_end_ns": 1_000_000_010_000_000_000,
+                       "benchmark_phase": "profiling"},
+         "metrics": {"input_sequence_length": {"value": 500, "unit": "tokens"},
+                     "output_sequence_length": {"value": 57067, "unit": "tokens"},
+                     "time_to_first_token": {"value": 250.0, "unit": "ms"}}},
+    ]
+    export.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    summary = {
+        "aiperf_version": "0.11.0",
+        "error_request_count": {"avg": 0},
+        "request_count": {"avg": 2},
+        "output_token_throughput": {"avg": 1234.5},
+        "request_throughput": {"avg": 6.7},
+        "time_to_first_token": {"avg": 200.0, "p50": 200.0, "p90": 250.0, "p99": 250.0},
+        "gpu_cache_hit_rate": {"avg": 0.42},
+    }
+    (export_dir / "profile_export_aiperf.json").write_text(json.dumps(summary))
+
+    rep = run_mod.assemble_report(str(export))
+
+    assert rep["aiperf"] is not None
+    assert rep["aiperf"]["faithful"] is True
+    assert rep["aiperf"]["prefix_cache"] == {"gpu_cache_hit_rate": 0.42}
+    assert "validate_token" in rep and "checks" in rep["validate_token"]
+    assert "validate_time" in rep and "ratios" in rep["validate_time"]

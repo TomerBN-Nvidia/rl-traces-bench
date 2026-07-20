@@ -38,6 +38,28 @@ def find_export(out_dir):
             return os.path.join(root, "profile_export.jsonl")
     return None
 
+def assemble_report(export, targets=None, vllm_src=None):
+    """Build the same report shape `analyze.main` writes: the compute_report
+    core metrics, both validation gates, the aiperf native-summary block
+    (throughput/faithful/prefix_cache — folded in via load_aiperf_summary), and
+    (best-effort) vLLM build provenance. Shared by `run.main` so run-generated
+    reports never drift from analyze-generated ones."""
+    from rl_traces_bench.analyze import (load_profile_export, compute_report,
+        validate_token_domain, validate_time_domain, load_aiperf_summary)
+    from rl_traces_bench.metrics import session_completions
+    recs = load_profile_export(export)
+    rep = compute_report(recs)
+    rep["validate_token"] = validate_token_domain(recs, targets=targets)
+    rep["validate_time"] = validate_time_domain(session_completions(recs))
+    rep["aiperf"] = load_aiperf_summary(export)   # native perf metrics + error gate
+    try:
+        from rl_traces_bench.provenance import collect_provenance
+        rep["provenance"] = collect_provenance(vllm_src)
+    except Exception:
+        pass
+    return rep
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="rl-traces run")
     ap.add_argument("--trace", required=True)
@@ -65,19 +87,9 @@ def main(argv=None):
     export = find_export(a.out)
     if not export:
         raise SystemExit(f"no profile_export.jsonl under {a.out}")
-    from rl_traces_bench.analyze import (load_profile_export, compute_report,
-        validate_token_domain, validate_time_domain, token_targets_from_distribution)
-    from rl_traces_bench.metrics import session_completions
-    recs = load_profile_export(export)
-    rep = compute_report(recs)
+    from rl_traces_bench.analyze import token_targets_from_distribution
     targets = token_targets_from_distribution(a.distribution) if a.distribution else None
-    rep["validate_token"] = validate_token_domain(recs, targets=targets)
-    rep["validate_time"] = validate_time_domain(session_completions(recs))
-    try:
-        from rl_traces_bench.provenance import collect_provenance
-        rep["provenance"] = collect_provenance(a.vllm_src)
-    except Exception:
-        pass
+    rep = assemble_report(export, targets=targets, vllm_src=a.vllm_src)
     with open(os.path.join(a.out, "report.json"), "w") as f:
         json.dump(rep, f, indent=2, default=str)
     print(json.dumps(rep, indent=2, default=str))
