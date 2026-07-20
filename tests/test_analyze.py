@@ -6,7 +6,7 @@ FIX = "tests/fixtures/profile_export_sample.jsonl"
 def test_load_and_report():
     recs = load_profile_export(FIX)
     assert len(recs) == 3
-    assert {r["session_id"] for r in recs} == {0, 1}
+    assert {r["session_id"] for r in recs} == {"0", "1"}
     rep = compute_report(recs)
     assert rep["makespan_s"] == 100.0            # straggler dominates
     assert rep["completion_p50_s"] in (10.0, 100.0)

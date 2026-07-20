@@ -7,7 +7,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 TRACE="${1:?usage: run_batch.sh <trace.jsonl> <B> <out_dir>}"; B="${2:?}"; OUT="${3:?}"
-aiperf profile --model "${AIPERF_MODEL:-super}" --endpoint-type chat \
+# aiperf needs a tokenizer (to synthesize prompts to the trace's input_length). The
+# served-model name is often an ambiguous HF match, so pass TOKENIZER explicitly —
+# the local checkpoint path is the safest (offline, unambiguous). Required.
+TOKENIZER="${TOKENIZER:?set TOKENIZER to the served model's HF id or local ckpt path}"
+aiperf profile --model "${AIPERF_MODEL:-super}" --tokenizer "$TOKENIZER" --endpoint-type chat \
   --endpoint /v1/chat/completions --url localhost:8000 --streaming \
   --custom-dataset-type mooncake_trace --input-file "$TRACE" \
   --concurrency "$B" --export-level records --output-artifact-dir "$OUT" \

@@ -5,39 +5,59 @@ import json
 from scripts.metrics import (percentiles, session_completions, makespan,
                              tail_bubble, goodput_proxy)
 
-_ALIASES = {
-    "session_id": ["session_id", "conversation_id", "session"],
-    "turn": ["turn_index", "turn_idx", "turn"],
-    "start_ns": ["start_ns", "timestamp_ns", "start"],
-    "latency_ns": ["request_latency_ns", "request_latency", "latency_ns"],
-    "isl": ["input_token_count", "num_input_tokens", "isl", "prompt_tokens"],
-    "osl": ["output_token_count", "num_output_tokens", "osl", "completion_tokens"],
-    "ttft_ns": ["time_to_first_token_ns", "ttft_ns", "time_to_first_token"],
-}
-
-
-def _pick(d, key):
-    for k in _ALIASES[key]:
-        if k in d:
-            return d[k]
+def _metric(metrics, *names):
+    """Return the .value of the first present metric. aiperf stores each metric as
+    {"value": X, "unit": "..."} inside the record's `metrics` dict."""
+    for n in names:
+        m = metrics.get(n)
+        if isinstance(m, dict) and "value" in m:
+            return m["value"]
     return None
 
 
 def load_profile_export(path):
-    out = []
+    """Parse an aiperf `profile_export.jsonl` (aiperf >=0.11 nested schema).
+
+    Each record is {"metadata": {...}, "metrics": {name: {value, unit}}}:
+      - metadata.conversation_id  -> session id (multi-turn grouping key)
+      - metadata.turn_index       -> turn
+      - metadata.request_start_ns / request_end_ns -> absolute ns timestamps
+      - metadata.benchmark_phase  -> filter to "profiling" (drop warmup)
+      - metrics.input_sequence_length / output_sequence_length -> ISL / OSL
+      - metrics.time_to_first_token (ms) -> TTFT
+    Absolute timestamps are normalized to batch-relative seconds (t0 = earliest
+    request start) so makespan/goodput are meaningful rather than ~1.0."""
+    raw = []
     for line in open(path):
         line = line.strip()
         if not line:
             continue
         d = json.loads(line)
-        start = (_pick(d, "start_ns") or 0) / 1e9
-        lat = (_pick(d, "latency_ns") or 0) / 1e9
+        meta = d.get("metadata", d)          # tolerate a flat export too
+        metrics = d.get("metrics", {})
+        if meta.get("benchmark_phase") not in (None, "profiling"):
+            continue                         # skip warmup / non-profiling records
+        raw.append({
+            "session_id": meta.get("conversation_id", meta.get("session_id")),
+            "turn": meta.get("turn_index", meta.get("turn")),
+            "start_ns": meta.get("request_start_ns"),
+            "end_ns": meta.get("request_end_ns"),
+            "isl": _metric(metrics, "input_sequence_length"),
+            "osl": _metric(metrics, "output_sequence_length", "output_token_count",
+                           "usage_completion_tokens"),
+            "ttft_ms": _metric(metrics, "time_to_first_token"),
+        })
+    starts = [r["start_ns"] for r in raw if r["start_ns"] is not None]
+    t0 = min(starts) if starts else 0
+    out = []
+    for r in raw:
+        s = ((r["start_ns"] or t0) - t0) / 1e9
+        e = ((r["end_ns"] or r["start_ns"] or t0) - t0) / 1e9
         out.append({
-            "session_id": _pick(d, "session_id"),
-            "turn": _pick(d, "turn"),
-            "start": start, "end": start + lat,
-            "isl": _pick(d, "isl"), "osl": _pick(d, "osl"),
-            "ttft": (_pick(d, "ttft_ns") or 0) / 1e9,
+            "session_id": r["session_id"], "turn": r["turn"],
+            "start": s, "end": e,
+            "isl": r["isl"], "osl": r["osl"],
+            "ttft": (r["ttft_ms"] / 1000.0) if r["ttft_ms"] is not None else 0.0,
         })
     return out
 
