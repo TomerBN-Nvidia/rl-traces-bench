@@ -3,7 +3,8 @@ import argparse
 import json
 
 from scripts.metrics import (percentiles, session_completions, makespan,
-                             tail_bubble, goodput_proxy)
+                             tail_bubble, goodput_proxy,
+                             output_token_throughput, request_throughput)
 
 def _metric(metrics, *names):
     """Return the .value of the first present metric. aiperf stores each metric as
@@ -72,6 +73,8 @@ def compute_report(records):
         "completion_p50_s": cp[50], "completion_p90_s": cp[90], "completion_p99_s": cp[99],
         "tail_bubble_s": tail_bubble(comps),
         "goodput_proxy": goodput_proxy(comps),
+        "output_tok_throughput": output_token_throughput(records),
+        "request_throughput": request_throughput(records),
     }
 
 

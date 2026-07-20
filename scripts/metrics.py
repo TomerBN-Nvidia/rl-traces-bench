@@ -33,3 +33,15 @@ def tail_bubble(completions):
 def goodput_proxy(completions):
     """Fraction of batch wall time that is useful (mean completion / makespan)."""
     return (sum(completions) / len(completions)) / max(completions)
+
+
+def output_token_throughput(records):
+    """Total generated output tokens per second over the batch (tokens/sec)."""
+    ms = makespan(records)
+    return (sum(r["osl"] or 0 for r in records) / ms) if ms else 0.0
+
+
+def request_throughput(records):
+    """Requests (turns) completed per second over the batch (req/sec)."""
+    ms = makespan(records)
+    return (len(records) / ms) if ms else 0.0
