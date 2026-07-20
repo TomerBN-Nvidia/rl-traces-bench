@@ -1,4 +1,4 @@
-"""Turn-count sampling (empirical, from File-1) + per-rollout OSL splitting."""
+"""Turn-count sampling (empirical, from an example workload skeleton) + per-rollout OSL splitting."""
 import json
 
 

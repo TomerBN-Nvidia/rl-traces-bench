@@ -1,23 +1,23 @@
 # Generated traces
 
 The trace `*.jsonl` files here are **git-ignored** (large, and fully reproducible
-from `--seed`). Only the `*.stats.json` calibration records are committed. To
-recreate the traces, run the commands below from `reproducer/` (laptop-safe, no
-GPU/aiperf).
+from `--seed`). Only the `*.stats.json` files are committed — sample realized-stats
+sidecars from example runs. To recreate the traces, run the commands below
+(laptop-safe, no GPU/aiperf).
 
 ## Canonical traces
 
 ```bash
-# production-like static batch (March config: 32 prompts x 16 gen = 512), default per_turn
-PYTHONPATH=. python3 scripts/gen_trace.py --num-rollouts 512  --osl-level per_turn \
+# production-like static batch (32 prompts x 16 gen = 512), default per_turn
+rl-traces gen-trace --num-rollouts 512  --osl-level per_turn \
   --seed 0 --out traces/trace_b512_per_turn_seed0.jsonl        # ~31 MB, 15,355 records
 
 # per_rollout interpretation variant (OSL total per rollout, split across turns)
-PYTHONPATH=. python3 scripts/gen_trace.py --num-rollouts 512  --osl-level per_rollout \
+rl-traces gen-trace --num-rollouts 512  --osl-level per_rollout \
   --seed 0 --out traces/trace_b512_per_rollout_seed0.jsonl     # ~3.6 MB, 15,333 records
 
-# tiny trace for the aiperf mock-server smoke
-PYTHONPATH=. python3 scripts/gen_trace.py --num-rollouts 8    --osl-level per_turn \
+# tiny trace for the mock-server smoke (examples/smoke.sh)
+rl-traces gen-trace --num-rollouts 8    --osl-level per_turn \
   --seed 0 --out traces/smoke_b8_per_turn_seed0.jsonl          # ~0.36 MB, 240 records
 ```
 
@@ -40,8 +40,7 @@ p99=57,067, max≈65,489). Larger `--num-rollouts` → tighter match:
 `per_rollout` (smaller per-turn ISL → far smaller files) or generate on the target
 host. A compact `hash_ids` encoding is possible future work.
 
-## Getting a trace onto HSG
+## Getting a trace onto a remote serving host
 
-Either `scp` the `*.jsonl` to the run host, or let `run/hsg_static_batch.sbatch`
-regenerate it in-allocation (it calls `gen_trace.py`). Same seed + params → byte-
-identical trace.
+`scp` the `*.jsonl` to the run host, or regenerate it there with the same
+`rl-traces gen-trace` seed + params (byte-identical trace either way).

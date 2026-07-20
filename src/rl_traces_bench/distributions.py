@@ -1,4 +1,4 @@
-"""Inverse-CDF OSL sampler calibrated to published RL rollout percentiles.
+"""Inverse-CDF OSL sampler calibrated to published long-tail generation-length percentiles.
 
 We do NOT assume a parametric family (the real distribution is bimodal). Instead
 we build the quantile function from the measured anchor points and interpolate
@@ -9,7 +9,7 @@ import json
 import math
 import random
 
-# (cumulative_prob, generated_tokens). p90 is estimated (design §10 / task header).
+# (cumulative_prob, generated_tokens); p90 is an interpolated estimate.
 OSL_ANCHORS = [
     (0.00, 1),
     (0.50, 654),

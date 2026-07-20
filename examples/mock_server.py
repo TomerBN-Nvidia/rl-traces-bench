@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Minimal OpenAI-compatible chat endpoint for the GPU-free aiperf smoke.
+"""Minimal OpenAI-compatible chat endpoint for a GPU-free smoke of the
+trace->aiperf->analyze pipeline.
 
 NOT a load/perf server. It streams up to MOCK_MAX_TOKENS tokens per request
 (capped so a tail straggler in the trace doesn't make the smoke slow). Its only
@@ -7,7 +8,7 @@ job is to let `aiperf profile` run the full mooncake-trace replay with no GPU, s
 we can validate the trace -> aiperf -> analyze plumbing and discover aiperf's real
 per-request `profile_export` field names.
 
-Usage: python3 run/mock_chat_server.py [PORT]   (default 8000)
+Usage: python3 examples/mock_server.py [PORT]   (default 8000)
 Env:   MOCK_MAX_TOKENS (default 32)
 """
 import json

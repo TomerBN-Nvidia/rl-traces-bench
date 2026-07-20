@@ -1,5 +1,1 @@
-pytest
-
-# `aiperf` (NVIDIA) is required on the serving host for the HSG/cluster steps
-# (serve/, run/, run/hsg_static_batch.sbatch) but is not needed to generate
-# traces or run the unit tests locally.
+# Install with: pip install -e '.[dev]'  (add [serve] for the vLLM serve helper)
