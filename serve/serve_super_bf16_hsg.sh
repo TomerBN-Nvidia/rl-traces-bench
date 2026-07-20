@@ -25,5 +25,8 @@ if [ -z "${MODEL:-}" ] || [ "$MODEL" = "<SUPER_BF16_CKPT_PATH>" ]; then
 fi
 
 vllm serve "$MODEL" --tensor-parallel-size "${TP}" --port 8000 \
-  --gpu-memory-utilization 0.9 "${EXTRA_SERVE_ARGS[@]}"
+  --gpu-memory-utilization 0.9 --enable-prompt-tokens-details "${EXTRA_SERVE_ARGS[@]}"
 # NOTE: CUDA graphs remain ON. Do not add --enforce-eager.
+# --enable-prompt-tokens-details makes vLLM report usage.prompt_tokens_details.cached_tokens
+# so aiperf/analyze can populate the PREFIX-CACHE HIT RATE (otherwise the cache metrics
+# are silently empty even though prefix caching is active).
