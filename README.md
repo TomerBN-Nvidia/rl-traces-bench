@@ -281,8 +281,23 @@ PYTHONPATH=. python3 -m pytest -v      # expect 23 passing
 
 ## Future work
 
-Phase 2 (not built here) layers the RL loop on top of this static-batch harness:
-lag-1 admission control and a refit-bubble model, measured against the real
-goodput anchors (buffer-starvation ≈49%, refit bubble ≈120s) — see design spec
-§3 and §11. The Phase-1 static batch maps directly onto a lag-1-gated fixed batch.
+- **HTML visualization / dashboard for analyzer + compare.** Today `analyze.py`
+  emits only a plain `report.html` table and `compare.py` prints to stdout. Build
+  a self-contained interactive HTML report (e.g. Plotly, or the team's
+  `generate_traces.py` idiom) that renders: the per-rollout **completion-time CDF
+  + histogram** (the tail), stat tiles for makespan / tail-bubble / goodput /
+  throughput, the **OSL fidelity** + ISL/OSL distributions, prefix-cache hit rate,
+  and an optional per-turn **timeline (Gantt)** of one batch. Plus an **A/B compare
+  view**: configs ranked by tail bubble, goodput/throughput bars, and overlaid
+  completion CDFs — so two coherent runs can be eyeballed side by side. Should
+  consume the existing `report.json` (+ aiperf's native summary) so no re-run is
+  needed.
+- **Ingest aiperf's native summary** (`profile_export_aiperf.json`) into
+  `report.json` instead of recomputing throughput/latency — one report with
+  aiperf's authoritative perf metrics + our rollout-level tail metrics.
+- **Phase 2 — RL-loop orchestration.** Layer the RL loop on top of this
+  static-batch harness: lag-1 admission control and a refit-bubble model, measured
+  against the real goodput anchors (buffer-starvation ≈49%, refit bubble ≈120s) —
+  see design spec §3 and §11. The Phase-1 static batch maps directly onto a
+  lag-1-gated fixed batch.
 ```
