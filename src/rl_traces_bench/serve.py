@@ -10,6 +10,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="rl-traces serve")
     ap.add_argument("--env", default=".env")
     a = ap.parse_args(argv)
+    if not os.path.exists(a.env):
+        raise SystemExit(f"env file not found: {a.env}")
     env = load_env(a.env)
     serve_args = env.get("VLLM_SERVE_ARGS")
     if not serve_args:
