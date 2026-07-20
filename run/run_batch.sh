@@ -13,11 +13,18 @@ TRACE="${1:?usage: run_batch.sh <trace.jsonl> <B> <out_dir>}"; B="${2:?}"; OUT="
 # e.g. nvidia/NVIDIA-Nemotron-3-Super-120B-BF16-BF16KV-012726, and point HF_HOME
 # at a warm cache to load it offline. Required.
 TOKENIZER="${TOKENIZER:?set TOKENIZER to the served model HF repo id (namespace/name)}"
-aiperf profile --model "${AIPERF_MODEL:-super}" --tokenizer "$TOKENIZER" --endpoint-type chat \
-  --endpoint /v1/chat/completions --url localhost:8000 --streaming \
+# Endpoint: default /v1/completions. Chat's template can emit a turn-end stop token
+# that ignore_eos (which only suppresses the EOS token id) does NOT cover, so the
+# server stops early and OSL is not enforced. The completions endpoint has no chat
+# template, so ignore_eos forces exactly max_tokens -> faithful OSL replay. Override
+# with ENDPOINT_TYPE=chat ENDPOINT=/v1/chat/completions if you specifically need chat.
+ENDPOINT_TYPE="${ENDPOINT_TYPE:-completions}"
+ENDPOINT="${ENDPOINT:-/v1/completions}"
+aiperf profile --model "${AIPERF_MODEL:-super}" --tokenizer "$TOKENIZER" \
+  --endpoint-type "$ENDPOINT_TYPE" --endpoint "$ENDPOINT" --url localhost:8000 --streaming \
   --custom-dataset-type mooncake_trace --input-file "$TRACE" \
   --concurrency "$B" --export-level records --output-artifact-dir "$OUT" \
-  --extra-inputs ignore_eos:true --extra-inputs min_tokens:1
+  --extra-inputs ignore_eos:true
 # aiperf may nest the export in a run subdir; locate it rather than assume the path.
 EXPORT="$(find "$OUT" -name 'profile_export.jsonl' | head -1)"
 [ -n "$EXPORT" ] || { echo "no profile_export.jsonl under $OUT"; find "$OUT" -type f; exit 1; }
