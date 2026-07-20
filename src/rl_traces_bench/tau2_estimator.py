@@ -53,10 +53,10 @@ def load_tau2(path):
     return rows
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--tau2", required=True)
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     m = fit_time_model(load_tau2(a.tau2))
     print(json.dumps(m, indent=2))
 

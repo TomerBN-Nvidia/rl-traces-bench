@@ -9,10 +9,10 @@ def compare_reports(named_reports):
     return rows
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("reports", nargs="+", help="name=path/report.json pairs")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     named = {}
     for spec in a.reports:
         name, path = spec.split("=", 1)

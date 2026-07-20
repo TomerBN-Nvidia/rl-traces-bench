@@ -95,12 +95,12 @@ def validate_time_domain(completions, ref=(84.0, 909.0, 1669.0), tol=0.35):
             "ref_ratios": {"p99/p50": ref_r1, "max/p50": ref_r2}}
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--export", required=True)
     ap.add_argument("--out-html", default="report.html")
     ap.add_argument("--out-json", default=None)
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     recs = load_profile_export(a.export)
     rep = compute_report(recs)
     rep["validate_token"] = validate_token_domain(recs)

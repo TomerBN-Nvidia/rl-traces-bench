@@ -48,7 +48,7 @@ def build_trace(num_rollouts, seed, block_size, osl_level, system_tokens,
     return records, stats
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--num-rollouts", type=int, default=512)
     ap.add_argument("--seed", type=int, default=0)
@@ -63,7 +63,7 @@ def main():
     ap.add_argument("--turn-counts", default=None,
                     help="override turn_counts, ignoring --distribution's turn_counts")
     ap.add_argument("--out", required=True)
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     dist_path = a.distribution if a.distribution is not None else default_distribution_path()
     dist = load_distribution(dist_path)
     anchors = [tuple(pair) for pair in dist["osl_anchors"]]
