@@ -92,4 +92,7 @@ def main(argv=None):
     rep = assemble_report(export, targets=targets, vllm_src=a.vllm_src)
     with open(os.path.join(a.out, "report.json"), "w") as f:
         json.dump(rep, f, indent=2, default=str)
+    from rl_traces_bench.report_html import render_report
+    with open(os.path.join(a.out, "report.html"), "w") as f:
+        f.write(render_report(rep))
     print(json.dumps(rep, indent=2, default=str))

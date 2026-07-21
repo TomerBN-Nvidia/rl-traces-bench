@@ -113,3 +113,26 @@ def test_assemble_report_includes_aiperf_summary_and_validation(tmp_path):
     assert rep["aiperf"]["prefix_cache"] == {"gpu_cache_hit_rate": 0.42}
     assert "validate_token" in rep and "checks" in rep["validate_token"]
     assert "validate_time" in rep and "ratios" in rep["validate_time"]
+
+
+def test_main_writes_report_html_beside_json(tmp_path, monkeypatch):
+    # run.main should emit the interactive report.html next to report.json, so a
+    # completed `run` is browsable with no separate `analyze --out-html` step.
+    out = tmp_path / "results"
+    export_dir = out / "artifacts"
+    export_dir.mkdir(parents=True)
+    export = export_dir / "profile_export.jsonl"
+    export.write_text(json.dumps({
+        "metadata": {"conversation_id": "0", "turn_index": 0,
+                     "request_start_ns": 1_000_000_000_000_000_000,
+                     "request_end_ns": 1_000_000_004_000_000_000,
+                     "benchmark_phase": "profiling"},
+        "metrics": {"input_sequence_length": {"value": 500, "unit": "tokens"},
+                    "output_sequence_length": {"value": 654, "unit": "tokens"}}}) + "\n")
+    monkeypatch.setattr(run_mod, "_check_aiperf_available", lambda: True)
+    monkeypatch.setattr(run_mod.subprocess, "run", lambda *a, **k: None)  # don't shell out to aiperf
+    run_mod.main(["--trace", "t.jsonl", "--url", "localhost:8000",
+                  "--concurrency", "1", "--tokenizer", "gpt2", "--out", str(out)])
+    html = (out / "report.html").read_text()
+    assert (out / "report.json").exists()
+    assert html.startswith("<!doctype html>") and "Completion-time CDF" in html

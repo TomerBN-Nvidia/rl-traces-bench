@@ -147,7 +147,7 @@ def _cdf(rep):
     comps = sorted(r["completion_s"] for r in rs)
     if not comps:
         return ""
-    W, H, mL, mR, mT, mB = 940, 300, 46, 14, 26, 30
+    W, H, mL, mR, mT, mB = 940, 300, 46, 14, 40, 30
     x0, x1, y0, y1 = mL, W - mR, mT, H - mB
     xmax = max(comps[-1], rep.get("makespan_s") or comps[-1]) or 1
     sx = lambda v: x0 + (v / xmax) * (x1 - x0)
@@ -175,15 +175,20 @@ def _cdf(rep):
     marks = [("p50", rep.get("completion_p50_s")), ("p90", rep.get("completion_p90_s")),
              ("p99", rep.get("completion_p99_s")), ("makespan", rep.get("makespan_s"))]
     marks = [(lab, sx(v)) for lab, v in marks if v is not None]
-    prev_x, prev_lvl = -1e9, 0
+    # Stack labels into as many rows as needed so clustered markers never overlap
+    # (e.g. p90/p99/makespan all landing within a percent of each other): place each
+    # label on the lowest row whose last label has cleared its horizontal span.
+    row_right = []          # rightmost x used, per row
     for lab, x in marks:
         g.append(f'<line class="marker" x1="{x:.1f}" y1="{y0}" x2="{x:.1f}" y2="{y1}"/>')
-        # if this label would overlap the previous one, raise it a row instead of shoving it sideways
-        lvl = 1 - prev_lvl if x < prev_x + 6 * (len(lab) + 1) else 0
         anchor = "end" if x >= x1 - 2 else "middle"
-        lx = min(x, x1)
-        g.append(f'<text class="marker-t" x="{lx:.1f}" y="{y0-3-lvl*12}" text-anchor="{anchor}">{lab}</text>')
-        prev_x, prev_lvl = x, lvl
+        w = 6.2 * len(lab)
+        left = x - (w if anchor == "end" else w / 2)
+        lvl = next((i for i, r in enumerate(row_right) if left >= r + 4), len(row_right))
+        if lvl == len(row_right):
+            row_right.append(0)
+        row_right[lvl] = x + (0 if anchor == "end" else w / 2)
+        g.append(f'<text class="marker-t" x="{min(x,x1):.1f}" y="{y0-3-lvl*12}" text-anchor="{anchor}">{lab}</text>')
     body = ("".join(g) + _axes(x0, y0, x1, y1) +
             f'<path class="series-fill" d="{fill}"/><path class="series-line" d="{path}"/>'
             f'<text class="axlabel" x="{(x0+x1)/2:.0f}" y="{H-1}" text-anchor="middle">rollout completion time</text>'
