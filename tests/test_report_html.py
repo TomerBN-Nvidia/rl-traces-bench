@@ -63,3 +63,40 @@ def test_render_report_escapes_title():
     h = render_report(_REP, title="<script>alert(1)</script>")
     assert "<script>alert(1)</script>" not in h
     assert "&lt;script&gt;" in h
+
+
+from rl_traces_bench.report_html import render_compare
+
+_A = dict(_REP)
+_B = dict(_REP, makespan_s=250.0, tail_bubble_s=90.0, goodput_proxy=0.40,
+          output_tok_throughput=1900.0,
+          rollouts=[{"completion_s": 20.0, "total_osl": 500, "turns": 2},
+                    {"completion_s": 150.0, "total_osl": 33000, "turns": 12},
+                    {"completion_s": 250.0, "total_osl": 57000, "turns": 25}])
+
+
+def test_render_compare_is_self_contained_and_has_both_configs():
+    h = render_compare({"baseline": _A, "mtp": _B})
+    assert h.startswith("<!doctype html>")
+    assert "http://" not in h and "https://" not in h
+    assert "baseline" in h and "mtp" in h
+    assert "Completion-time CDF" in h and "Tail bubble" in h
+
+
+def test_render_compare_delta_tiles_only_for_two_configs():
+    two = render_compare({"a": _A, "b": _B})
+    assert "vs a" in two  # B-vs-A delta annotation present
+    three = render_compare({"a": _A, "b": _B, "c": _A})
+    assert "vs a" not in three  # deltas suppressed for >2 configs
+
+
+def test_render_compare_embeds_per_config_series_for_overlaid_cdf():
+    h = render_compare({"baseline": _A, "mtp": _B})
+    assert "window.__COMPARE__=" in h
+    assert '"name": "baseline"' in h and '"name": "mtp"' in h
+
+
+def test_render_compare_color_follows_entity_not_rank():
+    # baseline is config A (blue --cfgA) whether or not it wins on tail bubble
+    h = render_compare({"baseline": _A, "mtp": _B})
+    assert "--cfgA" in h and "--cfgB" in h

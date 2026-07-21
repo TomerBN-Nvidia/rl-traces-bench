@@ -24,11 +24,13 @@ _CSS = """
   --ink:#0b0b0b; --ink2:#52514e; --muted:#8a897f;
   --series:#2a78d6; --series-soft:#9ec5f4; --waste:#eb6834; --grid:#eeede9;
   --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --cfgA:#2a78d6; --cfgB:#008300; --cfgC:#e87ba4; --cfgD:#eda100;
 }
 [data-theme=dark]{
   --surface:#1a1a19; --panel:#232320; --line:#3a3a36;
   --ink:#ffffff; --ink2:#c3c2b7; --muted:#8f8e83;
   --series:#3987e5; --series-soft:#1c5cab; --waste:#d95926; --grid:#2c2c29;
+  --cfgA:#3987e5; --cfgB:#008300; --cfgC:#d55181; --cfgD:#c98500;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--surface);color:var(--ink);
@@ -76,6 +78,10 @@ th{color:var(--ink2);font-weight:600} td.n{text-align:right;font-variant-numeric
   opacity:0;transition:opacity .08s;z-index:9;white-space:nowrap}
 .hoverpt{fill:var(--series);stroke:var(--panel);stroke-width:1.5;opacity:0}
 .crosshair{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3;opacity:0}
+.swatch{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:6px}
+.delta-good{color:var(--good);font-weight:600} .delta-bad{color:var(--serious);font-weight:600}
+.cmp-series{fill:none;stroke-width:2}
+.cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
 """
 
 
@@ -352,4 +358,191 @@ def render_report(rep, title="rl-traces-bench report"):
 </main>
 <div id="tip"></div>
 <script>window.__ROLLOUTS__={rollouts_json};{_JS}</script>
+</body></html>"""
+
+
+# ===================== A/B compare view =====================
+_CFG_VARS = ["--cfgA", "--cfgB", "--cfgC", "--cfgD"]
+
+
+def _cfg_color(i):
+    return f"var({_CFG_VARS[i % len(_CFG_VARS)]})"
+
+
+def _cmp_legend(items, colors):
+    chips = "".join(f'<span class="chip"><span class="swatch" style="background:{c}"></span>{_e(n)}</span>'
+                    for (n, _), c in zip(items, colors))
+    return f'<div class="chips">{chips}</div>'
+
+
+def _cmp_deltas(items, colors):
+    """B-vs-A headline (only for exactly two configs): each metric's config-B value
+    and its signed change vs the baseline (config A), arrow + color keyed to whether
+    the change is an improvement for that metric's direction (lower/higher is better)."""
+    if len(items) != 2:
+        return ""
+    (an, a), (bn, b) = items
+    # (label, key, lower_is_better, formatter)
+    metrics = [("Makespan", "makespan_s", True, _fmt_s),
+               ("Tail bubble", "tail_bubble_s", True, _fmt_s),
+               ("Goodput", "goodput_proxy", False, lambda v: f"{v*100:.0f}%"),
+               ("Throughput", "output_tok_throughput", False, lambda v: f"{v:.0f} tok/s")]
+    tiles = []
+    for lab, k, lower_better, fmt in metrics:
+        av, bv = a.get(k), b.get(k)
+        if av is None or bv is None:
+            continue
+        dv = bv - av
+        improved = (dv < 0) if lower_better else (dv > 0)
+        pct = (dv / av * 100) if av else 0.0
+        cls = "delta-good" if improved else ("delta-bad" if dv else "")
+        arrow = "▲" if dv > 0 else ("▼" if dv < 0 else "—")
+        tiles.append(f'<div class="tile"><b>{_e(fmt(bv))}</b><span>{_e(lab)} · {_e(bn)}</span><br>'
+                     f'<small class="{cls}">{arrow} {pct:+.0f}% vs {_e(an)}</small></div>')
+    return f'<div class="tiles">{"".join(tiles)}</div>'
+
+
+def _cmp_cdf(items, colors):
+    """Overlaid completion-time CDFs, one line per config on a shared axis (x = max
+    makespan across configs). A config whose curve sits up-and-left finishes its
+    batch sooner and with a shorter tail."""
+    series = [(n, sorted(r["completion_s"] for r in (rep.get("rollouts") or [])), c)
+              for (n, rep), c in zip(items, colors)]
+    series = [s for s in series if s[1]]
+    if not series:
+        return ""
+    W, H, mL, mR, mT, mB = 940, 320, 46, 14, 16, 42
+    x0, x1, y0, y1 = mL, W - mR, mT, H - mB
+    xmax = max(max(comps) for _, comps, _ in series) or 1
+    sx = lambda v: x0 + (v / xmax) * (x1 - x0)
+    sy = lambda f: y1 - f * (y1 - y0)
+    g = []
+    for f in (0, .25, .5, .75, .9, 1.0):
+        y = sy(f)
+        g.append(f'<line class="grid-line" x1="{x0}" y1="{y:.1f}" x2="{x1}" y2="{y:.1f}"/>')
+        g.append(f'<text class="tick" x="{x0-6}" y="{y+3:.1f}" text-anchor="end">{f:.2f}</text>')
+    for k in range(0, 6):
+        v = xmax * k / 5
+        g.append(f'<text class="tick" x="{sx(v):.1f}" y="{y1+14}" text-anchor="middle">{_fmt_s(v)}</text>')
+    g.append(_axes(x0, y0, x1, y1))
+    hover = []
+    for i, (n, comps, c) in enumerate(series):
+        nn = len(comps)
+        pts = []
+        for j, v in enumerate(comps):
+            pts.append((sx(v), sy(j / nn)))
+            pts.append((sx(v), sy((j + 1) / nn)))
+        path = "M " + " L ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+        dash = ' stroke-dasharray="6 4"' if i else ''   # secondary encoding beyond hue
+        g.append(f'<path class="cmp-series" style="stroke:{c}"{dash} d="{path}"/>')
+        # direct label in the empty top-left corner (never clips; complements the legend)
+        g.append(f'<text x="{x0+12}" y="{y0+14+i*15:.0f}" style="fill:{c}" '
+                 f'font-size="11" font-weight="600">{_e(n)}</text>')
+        hover.append(f'<circle class="hoverpt" id="cmp-hp-{i}" style="fill:{c};opacity:0" r="4"/>')
+    body = ("".join(g) + f'<line class="crosshair" id="cmp-cx" y1="{y0}" y2="{y1}"/>' + "".join(hover) +
+            f'<text class="axlabel" x="{(x0+x1)/2:.0f}" y="{H-2}" text-anchor="middle">rollout completion time</text>')
+    svg = (f'<svg viewBox="0 0 {W} {H}" id="cmp-cdf" data-x0="{x0}" data-x1="{x1}" '
+           f'data-y0="{y0}" data-y1="{y1}" data-xmax="{xmax}">{body}</svg>')
+    return _panel("Completion-time CDF — overlaid", "cumulative fraction of rollouts finished by time t, per config; up-and-left is faster", svg)
+
+
+def _cmp_metric_bar(title, hint, rows, fmt, lower_better):
+    """One metric across configs as horizontal bars (a row per config), scaled to the
+    max value; direction of 'better' is annotated so the reader isn't left guessing."""
+    vals = [v for _, v, _ in rows if v is not None]
+    if not vals:
+        return ""
+    vmax = max(vals) or 1
+    W, rowh, mL, mR = 460, 30, 96, 70
+    x0, x1 = mL, W - mR
+    H = 26 + rowh * len(rows)
+    g = []
+    for i, (name, v, c) in enumerate(rows):
+        y = 20 + i * rowh
+        if v is None:
+            continue
+        w = (v / vmax) * (x1 - x0)
+        g.append(f'<text class="axlabel" x="{x0-8}" y="{y+13}" text-anchor="end">{_e(name)}</text>')
+        g.append(f'<rect x="{x0}" y="{y}" width="{max(2,w):.1f}" height="18" rx="4" style="fill:{c}"/>')
+        g.append(f'<text class="tick" x="{x0+max(2,w)+6:.1f}" y="{y+13}">{_e(fmt(v))}</text>')
+    better = "↓ lower is better" if lower_better else "↑ higher is better"
+    svg = f'<svg viewBox="0 0 {W} {H}">{"".join(g)}</svg>'
+    return _panel(title, f"{hint} · {better}", svg)
+
+
+def _cmp_bars(items, colors):
+    def rows(key):
+        return [(n, rep.get(key), c) for (n, rep), c in zip(items, colors)]
+    panels = [
+        _cmp_metric_bar("Tail bubble", "wall time waiting past p90", rows("tail_bubble_s"), _fmt_s, True),
+        _cmp_metric_bar("Goodput", "mean completion / makespan", rows("goodput_proxy"),
+                        lambda v: f"{v*100:.0f}%", False),
+        _cmp_metric_bar("Throughput", "output tokens per second", rows("output_tok_throughput"),
+                        lambda v: f"{v:.0f} tok/s", False),
+    ]
+    return f'<div class="cmp-grid">{"".join(panels)}</div>'
+
+
+def _cmp_table(items):
+    keys = ["num_sessions", "makespan_s", "completion_p50_s", "completion_p90_s",
+            "completion_p99_s", "tail_bubble_s", "goodput_proxy", "output_tok_throughput"]
+    head = "".join(f'<th style="text-align:right">{_e(n)}</th>' for n, _ in items)
+    body = []
+    for k in keys:
+        cells = "".join(f'<td class="n">{_e(round(rep[k],4) if isinstance(rep.get(k),float) else rep.get(k,"—"))}</td>'
+                        for _, rep in items)
+        body.append(f'<tr><td>{_e(k)}</td>{cells}</tr>')
+    return f'<div id="tableview"><table><tr><th>metric</th>{head}</tr>{"".join(body)}</table></div>'
+
+
+_JS_COMPARE = """
+(function(){const svg=document.getElementById('cmp-cdf');if(!svg)return;
+  const data=window.__COMPARE__||[]; data.forEach(d=>d.comps.sort((a,b)=>a-b));
+  const x0=+svg.dataset.x0,x1=+svg.dataset.x1,y0=+svg.dataset.y0,y1=+svg.dataset.y1,xmax=+svg.dataset.xmax;
+  const cx=document.getElementById('cmp-cx');
+  svg.addEventListener('mousemove',e=>{const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+    const p=pt.matrixTransform(svg.getScreenCTM().inverse());
+    const t=Math.max(0,Math.min(xmax,(p.x-x0)/(x1-x0)*xmax));
+    const px=x0+(t/xmax)*(x1-x0);
+    cx.setAttribute('x1',px);cx.setAttribute('x2',px);cx.style.opacity=1;
+    let rows='<b>'+t.toFixed(1)+'s</b>';
+    data.forEach((d,i)=>{let k=0;while(k<d.comps.length&&d.comps[k]<t)k++;
+      const frac=d.comps.length?k/d.comps.length:0;
+      const hp=document.getElementById('cmp-hp-'+i);
+      if(hp){hp.setAttribute('cx',px);hp.setAttribute('cy',y1-frac*(y1-y0));hp.style.opacity=1;}
+      rows+='<br><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'
+        +d.color+';margin-right:5px"></span>'+d.name+': '+(frac*100).toFixed(0)+'%';});
+    showTip(e.clientX,e.clientY,rows);});
+  svg.addEventListener('mouseleave',()=>{cx.style.opacity=0;
+    data.forEach((d,i)=>{const hp=document.getElementById('cmp-hp-'+i);if(hp)hp.style.opacity=0;});hideTip();});})();
+"""
+
+
+def render_compare(named, title="rl-traces-bench — A/B compare"):
+    """Return a self-contained HTML A/B comparison of several `report` dicts.
+
+    `named` maps a config label to its report dict (insertion order = config order;
+    color follows the entity, not its rank). Renders overlaid completion CDFs,
+    per-metric bars, and — for exactly two configs — B-vs-A delta tiles."""
+    items = list(named.items())
+    colors = [_cfg_color(i) for i in range(len(items))]
+    cmp_json = json.dumps([{"name": n, "color": _cfg_color(i),
+                            "comps": sorted(r["completion_s"] for r in (rep.get("rollouts") or []))}
+                           for i, (n, rep) in enumerate(items)])
+    charts = _cmp_cdf(items, colors) + _cmp_bars(items, colors)
+    return f"""<!doctype html><html lang="en" data-theme="light"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{_e(title)}</title><style>{_CSS}</style></head><body>
+<main>
+<div class="top"><div><h1>{_e(title)}</h1>
+<p class="sub">same trace, {_e(len(items))} configs — differences are attributable to the config</p></div>
+<div><button class="toggle" id="tablebtn">Table</button>
+<button class="toggle" id="themebtn">Dark</button></div></div>
+{_cmp_legend(items, colors)}
+<h2>Change vs baseline</h2>{_cmp_deltas(items, colors)}
+<div id="charts"><h2>Long tail</h2>{charts}</div>
+{_cmp_table(items)}
+</main>
+<div id="tip"></div>
+<script>window.__COMPARE__={cmp_json};{_JS}{_JS_COMPARE}</script>
 </body></html>"""
