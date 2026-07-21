@@ -61,7 +61,10 @@ rl-traces run --url localhost:8000 --trace t.jsonl --concurrency 512 \
 ```
 
 `results/report.json` has your makespan, tail bubble, goodput proxy, and the
-dual validation gate result. See [`docs/quickstart.md`](docs/quickstart.md)
+dual validation gate result; `results/report.html` is a self-contained
+interactive report of the same run (completion-time CDF, goodput decomposition,
+coherence-gate chips — hover, table view, dark mode, no CDN dependencies), so
+you can just open it in a browser. See [`docs/quickstart.md`](docs/quickstart.md)
 for the full copy-pasteable walkthrough.
 
 ## `run` vs `serve`
