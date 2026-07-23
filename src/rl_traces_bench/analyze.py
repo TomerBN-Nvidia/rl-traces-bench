@@ -150,7 +150,10 @@ def validate_token_domain(records, targets=None, tol=0.15):
     osl = list(tot.values())
     got = percentiles(osl, [50, 95, 99])
     checks = {p: abs(got[p] - t) <= tol * t for p, t in targets.items()}
-    return {"passed": all(checks.values()), "realized": got, "checks": checks}
+    # carry the targets so the HTML report draws the *actual* reference lines
+    # (custom --distribution anchors), not the packaged defaults.
+    return {"passed": all(checks.values()), "realized": got, "checks": checks,
+            "targets": targets}
 
 
 def token_targets_from_distribution(dist_path):

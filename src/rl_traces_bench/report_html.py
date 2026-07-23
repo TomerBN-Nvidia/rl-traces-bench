@@ -265,7 +265,10 @@ def _tokenval(rep):
     if not vt:
         return ""
     realized, checks = vt.get("realized", {}), vt.get("checks", {})
-    targets = {50: 654, 95: 33212, 99: 57067}   # default anchors (shown for reference)
+    # actual validation anchors (custom --distribution or packaged default); keys may be
+    # int (in-memory rep) or str (reloaded from report.json) — normalize to int.
+    raw_t = vt.get("targets") or {50: 654, 95: 33212, 99: 57067}
+    targets = {int(k): v for k, v in raw_t.items()}
     ps = [50, 95, 99]
     xmax = max(list(realized.values()) + list(targets.values()) + [1])
     W, H, mL, mR = 940, 150, 60, 14

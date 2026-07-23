@@ -44,6 +44,18 @@ def test_render_report_embeds_per_rollout_data_for_client_charts():
     assert 'data-osl="57000"' in h
 
 
+def test_token_validation_draws_custom_distribution_targets():
+    # a custom --distribution supplies its own anchors; the chart must show THOSE,
+    # not the packaged defaults, as the target reference lines.
+    rep = dict(_REP, validate_token={
+        "passed": True, "realized": {50: 900, 95: 12000, 99: 20000},
+        "checks": {50: True, 95: True, 99: True},
+        "targets": {50: 950, 95: 11800, 99: 21000}})
+    h = render_report(rep)
+    assert "target 21.0k" in h          # custom p99 anchor rendered
+    assert "target 57.1k" not in h      # packaged default NOT shown
+
+
 def test_render_report_status_chips_reflect_gate_state():
     # a failed token gate should surface the serious status color, not the good one
     rep = dict(_REP, validate_token={"passed": False, "realized": {}, "checks": {}})
