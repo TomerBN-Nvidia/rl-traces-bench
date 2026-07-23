@@ -4,20 +4,23 @@ Phase 1 (this repo) synthesizes a calibrated long-tail trace, replays it as a
 static batch against any OpenAI-compatible endpoint, and reports the long-tail /
 goodput metric set for A/B-ing serving configs. Natural next steps:
 
-## Interactive HTML dashboard for `analyze` + `compare`
+## Interactive HTML report — `analyze` (shipped) → `compare` (next)
 
-Today `analyze` emits a plain `report.html` table and `compare` prints to stdout.
-Build a self-contained interactive report (consuming the existing `report.json`
-+ the folded aiperf summary, so no re-run is needed) that renders:
+`analyze --out-html` now emits a **self-contained interactive report** (inline
+SVG + vanilla JS, no CDN deps) from the existing `report.json` + folded aiperf
+summary: headline stat tiles, coherence-gate status chips, the per-rollout
+**completion-time CDF**, a goodput-decomposition bar, a completion-vs-OSL
+scatter, and token-domain validation — with hover tooltips, a table view, and
+dark mode. See `rl_traces_bench/report_html.py`.
 
-- the per-rollout **completion-time CDF + histogram** — the tail itself;
-- stat tiles for makespan / tail-bubble / goodput / throughput;
-- **OSL fidelity** and the ISL/OSL distributions;
-- **prefix-cache hit rate** (from the `aiperf.prefix_cache` block);
-- an optional per-turn **timeline (Gantt)** of one batch.
+Still open, to extend it:
 
-Plus an **A/B compare view**: configs ranked by tail bubble, goodput/throughput
-bars, and overlaid completion CDFs, so two runs can be eyeballed side by side.
+- a per-rollout **OSL histogram** and the ISL/OSL distributions alongside the CDF;
+- **prefix-cache hit rate** surfaced from the `aiperf.prefix_cache` block;
+- an optional per-turn **timeline (Gantt)** of one batch;
+- an **A/B `compare` view** (`compare.html`): configs ranked by tail bubble,
+  goodput/throughput bars, and overlaid completion CDFs, reusing the same
+  renderer so two runs can be eyeballed side by side.
 
 ## Automated prefix-cache / server-metrics scrape
 

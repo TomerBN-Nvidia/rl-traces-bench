@@ -53,10 +53,32 @@ See the `interpret-longtail-report` skill for what the fields in `report.json` m
 
 ## 5. A/B two configs or vLLM builds
 
-Repeat steps 2–4 with a second `.env` (different `VLLM_SERVE_ARGS`) or a second editable vLLM checkout (different `--vllm-src`), writing to a different `--out` directory. Then:
+Repeat steps 2–4 with a second `.env` (different `VLLM_SERVE_ARGS`) or a second editable vLLM checkout (different `--vllm-src`), writing to a different `--out` directory. **Use the SAME trace for both** so any timing delta is attributable to the config, not the workload. Then:
 
 ```
-rl-traces compare baseline=runs/baseline/report.json mine=runs/mine/report.json
+rl-traces compare baseline=runs/baseline/report.json mine=runs/mine/report.json \
+  --out-html runs/compare.html
 ```
 
-This prints a side-by-side diff of the key metrics so you can see whether the change helped or hurt the tail.
+This prints a side-by-side diff of the key metrics AND (with `--out-html`) writes a self-contained interactive compare report: overlaid completion CDFs, per-metric bars (tail bubble / goodput / throughput), and B-vs-A delta tiles. See the `interpret-longtail-report` skill.
+
+### Example A/B: speculative decoding (MTP) at a forced acceptance rate
+
+A canonical serving A/B is **baseline vs MTP**. Real MTP verifies drafts against the target model, so on the synthetic trace prompts acceptance is ~0 and you'd measure no speedup. vLLM's **synthetic** rejection sampler bypasses verification and forces a target acceptance rate, isolating the serving-path effect of "MTP at acceptance = X" — and it needs a checkpoint with an MTP head (`config.json`: `num_nextn_predict_layers >= 1`). Requires vLLM 0.24+.
+
+```
+# A: baseline — no speculative decoding
+vllm serve $MODEL --tensor-parallel-size $TP --enable-prefix-caching --enable-prompt-tokens-details
+rl-traces run --url localhost:8000 --trace t.jsonl --concurrency $B --tokenizer $HF_ID --out runs/baseline
+
+# B: MTP with a FORCED acceptance rate (data-independent speedup)
+vllm serve $MODEL --tensor-parallel-size $TP --enable-prefix-caching --enable-prompt-tokens-details \
+  --speculative-config '{"method":"mtp","num_speculative_tokens":3,
+                         "rejection_sample_method":"synthetic","synthetic_acceptance_rate":0.8}'
+rl-traces run --url localhost:8000 --trace t.jsonl --concurrency $B --tokenizer $HF_ID --out runs/mtp
+
+rl-traces compare "baseline=runs/baseline/report.json" "mtp accept=0.8=runs/mtp/report.json" \
+  --out-html runs/compare.html
+```
+
+Runnable examples: `examples/compare_mtp.sh` (real GPU, with/without MTP) and `examples/compare_smoke.sh` (GPU-free, models the acceptance-length effect with the mock server). Note MTP shrinks makespan/throughput but a *uniform* decode speedup leaves the goodput ratio (mean/makespan) roughly unchanged — the tail *shape* is what goodput measures.

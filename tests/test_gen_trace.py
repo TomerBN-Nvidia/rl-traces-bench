@@ -46,3 +46,40 @@ def test_per_rollout_stats_are_per_rollout_level():
     assert len(totals) == 500                       # one value per rollout
     assert stats["osl_p50"] == pct(totals, 50)      # stats computed over per-rollout totals
     assert stats["osl_p99"] == pct(totals, 99)
+
+
+def test_stats_report_max_accumulated_context():
+    counts = _turn_counts()
+    _, stats = build_trace(num_rollouts=64, seed=0, block_size=512,
+                           osl_level="per_rollout", system_tokens=300,
+                           user_turn_tokens=200, shared_blocks=1, turn_counts=counts)
+    assert "max_context" in stats and "context_p99" in stats
+    assert stats["max_context"] >= stats["context_p99"] >= 0
+
+
+def test_per_turn_accumulates_far_more_context_than_per_rollout():
+    # The core servability fact: per_turn draws the heavy tail EVERY turn and
+    # accumulates past a normal window, while per_rollout stays bounded.
+    counts = _turn_counts()
+    _, pt = build_trace(num_rollouts=64, seed=0, block_size=512, osl_level="per_turn",
+                        system_tokens=300, user_turn_tokens=200, shared_blocks=1, turn_counts=counts)
+    _, pr = build_trace(num_rollouts=64, seed=0, block_size=512, osl_level="per_rollout",
+                        system_tokens=300, user_turn_tokens=200, shared_blocks=1, turn_counts=counts)
+    assert pt["max_context"] > 131072          # per_turn overflows a 128k window
+    assert pr["max_context"] < 131072          # per_rollout fits
+    assert pt["max_context"] > 3 * pr["max_context"]
+
+
+def test_gen_trace_warns_when_context_exceeds_max_model_len(tmp_path, capsys):
+    import sys
+    from rl_traces_bench.gen_trace import main
+    out = tmp_path / "t.jsonl"
+    argv = ["gen-trace", "--num-rollouts", "64", "--seed", "0", "--osl-level", "per_turn",
+            "--max-model-len", "131072", "--out", str(out)]
+    old = sys.argv; sys.argv = argv
+    try:
+        main()
+    finally:
+        sys.argv = old
+    err = capsys.readouterr().err
+    assert "exceeds --max-model-len" in err and "per_rollout" in err

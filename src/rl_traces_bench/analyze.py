@@ -105,6 +105,20 @@ def load_aiperf_summary(export_path):
     }
 
 
+def rollout_summaries(records):
+    """Per-rollout (per-session) summary for the HTML report's per-rollout charts
+    (completion CDF, completion-vs-OSL scatter): completion time = last turn's end
+    (batch-relative seconds), total generated tokens, and turn count."""
+    from collections import defaultdict
+    by = defaultdict(list)
+    for r in records:
+        by[r["session_id"]].append(r)
+    return [{"completion_s": max(x["end"] for x in rs),
+             "total_osl": sum(x["osl"] or 0 for x in rs),
+             "turns": len(rs)}
+            for rs in by.values()]
+
+
 def compute_report(records):
     comps = session_completions(records)
     cp = percentiles(comps, [50, 90, 99])
@@ -117,6 +131,7 @@ def compute_report(records):
         "goodput_proxy": goodput_proxy(comps),
         "output_tok_throughput": output_token_throughput(records),
         "request_throughput": request_throughput(records),
+        "rollouts": rollout_summaries(records),
     }
 
 
@@ -135,7 +150,10 @@ def validate_token_domain(records, targets=None, tol=0.15):
     osl = list(tot.values())
     got = percentiles(osl, [50, 95, 99])
     checks = {p: abs(got[p] - t) <= tol * t for p, t in targets.items()}
-    return {"passed": all(checks.values()), "realized": got, "checks": checks}
+    # carry the targets so the HTML report draws the *actual* reference lines
+    # (custom --distribution anchors), not the packaged defaults.
+    return {"passed": all(checks.values()), "realized": got, "checks": checks,
+            "targets": targets}
 
 
 def token_targets_from_distribution(dist_path):
@@ -175,9 +193,8 @@ def main(argv=None):
     rep["validate_token"] = validate_token_domain(recs, targets=targets)
     rep["validate_time"] = validate_time_domain(session_completions(recs))
     rep["aiperf"] = load_aiperf_summary(a.export)   # native perf metrics + error gate
-    rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in rep.items())
-    open(a.out_html, "w").write(f"<html><body><h1>RL long-tail report</h1>"
-                                f"<table border=1>{rows}</table></body></html>")
+    from rl_traces_bench.report_html import render_report
+    open(a.out_html, "w").write(render_report(rep))
     if a.out_json:
         with open(a.out_json, "w") as f:
             json.dump(rep, f, indent=2, default=str)
